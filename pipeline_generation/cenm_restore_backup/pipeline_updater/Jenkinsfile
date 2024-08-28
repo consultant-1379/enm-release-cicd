@@ -1,0 +1,120 @@
+def returnParametersForDsl() {
+    return [REGULAR_SLAVES: env.REGULAR_SLAVES, OPENSTACK_SLAVES: env.OPENSTACK_SLAVES, TEAM_EMAIL: env.TEAM_EMAIL, PERMISSION_GROUPS: env.PERMISSION_GROUPS]
+}
+
+def returnListOfCenmRestoreBackupJobs() {
+    def listOfCenmRestoreBackupJobs = []
+
+    // === Cenm Restore Backup Standalone Jobs ===
+    listOfCenmRestoreBackupJobs = listOfCenmRestoreBackupJobs.plus('DSL/seedpipelines/cenmrestorebackup/CenmRestoreBackup.groovy')
+
+    // === Cenm Backup For Restore Retention Policy Cleanup Job ===
+    listOfCenmRestoreBackupJobs = listOfCenmRestoreBackupJobs.plus('DSL/seedchildjobs/cenmbackupforrestoreretentionpolicycleanup/CenmBackupForRestoreRetentionPolicyCleanup.groovy')
+
+    // === Restore Backup Updater & Generator ===
+    listOfCenmRestoreBackupJobs = listOfCenmRestoreBackupJobs.plus('pipeline_generation/cenm_restore_backup/DSL/CenmRestoreBackupPipelineGenerator.groovy')
+    listOfCenmRestoreBackupJobs = listOfCenmRestoreBackupJobs.plus('pipeline_generation/cenm_restore_backup/DSL/CenmRestoreBackupPipelineUpdater.groovy')
+    
+    return listOfCenmRestoreBackupJobs
+}
+
+pipeline {
+    agent {
+        node {
+            label OPENSTACK_SLAVES
+        }
+    }
+
+    environment {
+        DSL_CLASSPATH = 'DSL'
+    }
+
+    stages {
+        stage ('Validate required parameters set') {
+            when {
+                anyOf {
+                    expression {
+                        env.REGULAR_SLAVES == null
+                    }
+                    expression {
+                        env.OPENSTACK_SLAVES == null
+                    }
+                    expression {
+                        env.TEAM_EMAIL == null
+                    }
+                }
+            }
+            steps {
+                error('Some required parameter(s) not set. Please supply a value for all required parameters')
+            }
+        }
+
+        stage ('Default PERMISSION_GROUP if null') {
+            when {
+                expression {
+                    env.PERMISSION_GROUP == null
+                }
+            }
+            steps {
+                script {
+                    env.PERMISSION_GROUP = 'authenticated'
+                }
+            }
+        }
+
+        stage ('Find changed DSL scripts') {
+            steps {
+                script {
+                    space_separated_list_of_cenm_jobs = returnListOfCenmRestoreBackupJobs().join(' ')
+                    difference_in_releases = sh(script: 'git diff --name-only HEAD^ HEAD | tr "\r\n" " "', returnStdout: true)
+                }
+                sh "sh ${WORKSPACE}/cicd/cicd_scripts/pipeline_generation_scripts/determine_list_of_dsl_seeds_and_json_files_to_update.sh \"${space_separated_list_of_cenm_jobs}\" \"${difference_in_releases}\""
+                script {
+                    def exists = fileExists "${WORKSPACE}/dsl_seed_jobs_to_build.txt"
+                    if (exists) {
+                        env.changed_dsl_files = readFile("${WORKSPACE}/dsl_seed_jobs_to_build.txt")
+                    }
+                }
+            }
+        }
+
+        stage('Run modified DSL scripts') {
+            when {
+                expression {
+                    env.changed_dsl_files != null
+                }
+            }
+            steps {
+                script {
+                    changed_dsl_files_as_list = env.changed_dsl_files.split(' ')
+                }
+
+                jobDsl targets: changed_dsl_files_as_list.join('\n'),
+                    additionalParameters: returnParametersForDsl(),
+                    additionalClasspath: env.DSL_CLASSPATH
+            }
+        }
+    }
+
+    post {
+        failure {
+            script {
+                emailOnRelease(env.team_email, "Failed to generate DSL successfully based on DSL provided. Please contact team Bumblebee.")
+            }
+        }
+        success {
+            script {
+                emailOnRelease(env.team_email, "New version of enm-release-cicd released and modified DSL generated successfully.")
+            }
+        }
+    }
+}
+
+def emailOnRelease(team_email, email_content) {
+    if (env.changed_dsl_files != null) {
+        def subject = "${env.JOB_NAME} - Build #${env.BUILD_NUMBER} - ${currentBuild.currentResult}"
+        emailext(body: email_content, mimeType: 'text/html', from: 'jenkins_monitoring@ericsson.com',
+        subject: subject,
+        to: team_email)
+    }
+}

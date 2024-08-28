@@ -1,0 +1,63 @@
+def commonMethods
+
+pipeline {
+    agent {
+        node {
+            label SLAVE
+        }
+    }
+    options {
+        timestamps()
+    }
+    stages {
+        stage('Load common methods') {
+            steps {
+                script {
+                    commonMethods = load("${env.WORKSPACE}/Jenkinsfiles/common_methods/CommonMethods.groovy")
+                }
+            }
+        }
+
+        stage('Set build name and description') {
+            steps {
+                script {
+                    currentBuild.displayName = "Cleaning up unused docker images from ${cluster_id}"
+                    currentBuild.description = "<b>MT Utils Version = ${mt_utils_version}</b>"
+                }
+            }
+        }
+
+        stage('Writing Parameters to parameters.properties') {
+            steps {
+                script {
+                    commonMethods.exportEnvVariablesToFile("parameters.properties")
+                }
+            }
+        }
+
+        stage('Downloading MT Utils Pipeline Scripts') {
+            steps {
+                script {
+                    commonMethods.downloadMtUtils()
+                }
+            }
+        }
+
+        stage('Storing Job Details in Slave') {
+            steps {
+                script {
+                    def node_name = "${SLAVE}"
+                    def date = new Date()
+                    sh " echo \" NODE_NAME : ${env.NODE_NAME} ; JOB_NAME : ${env.JOB_NAME} ; BUILD_NUMBER : ${env.BUILD_NUMBER} ; $date \" >> \"/home/lciadm100/jenkins/job_details.log\" "
+                }
+            }
+        }
+
+        stage('Performing Disk Usage check and Clean up') {
+            steps{
+                sh "MTELoopScripts/pipeline_scripts/cenm_mte_cleanup_images_from_worker_nodes.sh ${WORKSPACE}/parameters.properties || exit 1"
+            }
+        }
+
+    }
+}

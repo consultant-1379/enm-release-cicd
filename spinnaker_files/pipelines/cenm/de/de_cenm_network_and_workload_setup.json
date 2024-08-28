@@ -1,0 +1,205 @@
+{
+    "application": "APPLICATION_NAME",
+    "disabled": false,
+    "keepWaitingPipelines": true,
+    "name": "PIPELINE_NAME",
+    "notifications": [
+      {
+        "address": "BumbleBee.ENM@tcs.com",
+        "cc": "",
+        "level": "pipeline",
+        "type": "email",
+        "when": [
+          "pipeline.failed"
+        ]
+      }
+    ],
+    "parameterConfig": [
+      {
+        "default": "",
+        "description": "",
+        "hasOptions": false,
+        "label": "",
+        "name": "environment_name",
+        "options": [
+          {
+            "value": ""
+          }
+        ],
+        "pinned": false,
+        "required": true
+      },
+      {
+        "default": "",
+        "description": "",
+        "hasOptions": false,
+        "label": "",
+        "name": "cenm_product_set_version",
+        "options": [
+          {
+            "value": ""
+          }
+        ],
+        "pinned": false,
+        "required": true
+      },
+      {
+        "default": "",
+        "description": "",
+        "hasOptions": false,
+        "label": "",
+        "name": "drop",
+        "options": [
+          {
+            "value": ""
+          }
+        ],
+        "pinned": false,
+        "required": true
+      },
+      {
+        "default": "DE",
+        "description": "",
+        "hasOptions": false,
+        "label": "",
+        "name": "test_phase",
+        "options": [
+          {
+            "value": ""
+          }
+        ],
+        "pinned": false,
+        "required": true
+      },
+      {
+        "default": "RELEASE",
+        "description": "",
+        "hasOptions": false,
+        "label": "",
+        "name": "mt_utils_version",
+        "options": [
+          {
+            "value": ""
+          }
+        ],
+        "pinned": false,
+        "required": true
+      },
+      {
+        "default": "ALL",
+        "description": "",
+        "hasOptions": false,
+        "label": "",
+        "name": "nodes_to_add_to_enm",
+        "options": [
+          {
+            "value": ""
+          }
+        ],
+        "pinned": false,
+        "required": true
+      },
+      {
+        "default": "ALL",
+        "description": "",
+        "hasOptions": false,
+        "label": "",
+        "name": "nodes_to_add_to_workpool",
+        "options": [
+          {
+            "value": ""
+          }
+        ],
+        "pinned": false,
+        "required": true
+      },
+      {
+        "default": "ha_01",
+        "description": "",
+        "hasOptions": false,
+        "label": "",
+        "name": "workload_profiles",
+        "options": [
+          {
+            "value": ""
+          }
+        ],
+        "pinned": false,
+        "required": true
+      },
+      {
+        "default": "ALL",
+        "description": "",
+        "hasOptions": false,
+        "label": "",
+        "name": "supervision_types",
+        "options": [
+          {
+            "value": ""
+          }
+        ],
+        "pinned": false,
+        "required": true
+      },
+      {
+        "default": "false",
+        "description": "",
+        "hasOptions": true,
+        "label": "",
+        "name": "force_arne_xml_creation",
+        "options": [
+          {
+            "value": "true"
+          }
+        ],
+        "pinned": false,
+        "required": true
+      }
+    ],
+    "spelEvaluator": "v4",
+    "stages": [
+      {
+        "continuePipeline": false,
+        "failPipeline": true,
+        "job": "cENM_Retrieve_ENM_Product_Set_Version",
+        "master": "FEM_CONTROLLER",
+        "name": "DE_cENM_Retrieve_ENM_Product_Set_Flow",
+        "parameters": {
+          "product_set_version": "${parameters['cenm_product_set_version']}",
+          "cluster_id": "${parameters['environment_name']}"
+        },
+        "propertyFile": "artifact.properties",
+        "refId": "1",
+        "requisiteStageRefIds": [],
+        "stageTimeoutMs": 36000000,
+        "type": "jenkins"
+      },
+      {
+        "continuePipeline": false,
+        "failPipeline": true,
+        "job": "DE_cENM_NonFunctional_Network_and_Workload_Setup_Flow",
+        "master": "FEM_CONTROLLER",
+        "name": "DE_cENM_Network_And_Workload_Setup",
+        "parameters": {
+          "cluster_id": "${parameters['environment_name']}",
+          "drop": "${parameters['drop']}",
+          "force_arne_xml_creation": "${parameters['force_arne_xml_creation']}",
+          "mt_utils_version": "${parameters['mt_utils_version']}",
+          "nodes_to_add_to_enm": "${parameters['nodes_to_add_to_enm']}",
+          "nodes_to_add_to_workpool": "${parameters['nodes_to_add_to_workpool']}",
+          "product_set_version": "${#stage('DE_cENM_Retrieve_ENM_Product_Set_Flow')['context']['enm_product_set_version']}",
+          "supervision_types": "${parameters['supervision_types']}",
+          "test_phase": "${parameters['test_phase']}",
+          "workload_profiles": "${parameters['workload_profiles']}"
+        },
+        "propertyFile": "",
+        "refId": "2",
+        "requisiteStageRefIds": [
+          "1"
+        ],
+        "stageTimeoutMs": 36000000,
+        "type": "jenkins"
+      }
+    ],
+    "triggers": []
+}

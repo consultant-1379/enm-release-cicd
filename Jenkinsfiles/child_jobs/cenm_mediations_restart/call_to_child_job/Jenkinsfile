@@ -1,0 +1,19 @@
+def callChildJob(checkJobBuildable) {
+    stage('cENM Mediations Restart') {
+        if (checkJobBuildable("cENM_Mediation_Pods_Restart")) {
+            def Cenm_Mediation_Pods_Restart = build(
+                job: "cENM_Mediation_Pods_Restart",
+                propagate: true,
+                wait: true,
+                parameters: [
+                    string(name: 'cluster_id', value: env.cluster_id),
+                    string(name: 'is_network_type_STC', value: env.is_network_type_STC),
+                ]
+            )
+        } else {
+            echo "cENM_Mediation_Pods_Restart Job is disabled. So skipping"
+        }
+    }
+}
+
+return this

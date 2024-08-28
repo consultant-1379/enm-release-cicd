@@ -1,0 +1,31 @@
+How to generate the Spinoff cENM Upgrade pipeline:
+-The first step is to create a Jenkins Job manually. The following page outlines how to do this:
+  - https://confluence-oss.seli.wh.rnd.internal.ericsson.com/x/8XaNFw
+-This will create the Spinoff_cENM_Upgrade_Pipeline_Generator job under a "cENM Jobs" view
+-The SPINOFF_cENM_Upgrade_Pipeline_Generator job must be built by the user, passing in the necessary parameters as described in the job itself
+
+What running this job will do:
+-Running this job will generate the Spinoff cENM Upgrade Pipeline and all the necessary jobs for use in the cENM Upgrade pipeline
+-It will also generate the job SPINOFF_cENM_Upgrade_Pipeline_Updater, which looks at gerrit for DSL changes. Any jobs associated with these flows which have been modified from a DSL perspective, will have their jobs automatically updated
+
+Required Plugins on Jenkins instance to run our DSL scripts:
+-Some of our DSL calls specific Jenkins plugins. These are likely on most Jenkins instances but here is a list of plugins that are required
+-Note, where versions are specified, the versions detailed are the minimum supported versions
+  -taf-trigger (1.0.47): Is required in order to execute a TAF TE build and generate jobs which execute a TAF TE build
+  -build-name-setter: Is required to set build names which is a convention of Bumblebee jobs
+  -credentials: Is necessary for restricting jobs to the appropriate parties
+  -description setter plugin: Allows us to set the description for each build which is a convention of Bumblebee jobs
+  -Environment Injector: Makes it possible to set environment variables in our generated jobs
+  -Export Parameters: Allows us to export parameters provided by Jenkins to a file, which is necessary for our generated jobs
+  -Git: Various git plugins are needed for pulling repo's from Jenkinsfiles etc
+  -Job DSL (1.68): Needed to actually generate Bumblebee jobs
+  -Mailer: Allows us to email necessary parties on job failures etc.
+  -Pipeline (2.5): Suite of plugins which allow us to run Jenkins pipelines
+  -Pipeline Basic Steps (2.8.1): Used for Jenkins pipelines
+  -Pipeline Build Step (2.7): Used for Jenkins pipelines
+  -Pipeline Declarative (1.2.7): Used for Jenkins pipelines
+
+Running full Spinoff cENM Upgrade Pipeline:
+-Once the Bumblebee sections of the Spinoff cENM Upgrade are generated, you should also generate the Misty sections of the cENM Upgrade by following Mistys release process
+--For support in generating Mistys section of the e2e flow, contact Bumblebee and we will point you in the right direction
+-The sections of flow should then be connected/orchestrated via spinnaker using the following Bumblebee documentation: === TBD ===

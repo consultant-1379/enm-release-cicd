@@ -1,0 +1,99 @@
+def returnParametersForDsl() {
+    return [REGULAR_SLAVES: env.REGULAR_SLAVES, TE_DOCKER_SLAVES: env.TE_DOCKER_SLAVES, OPENSTACK_SLAVES: env.OPENSTACK_SLAVES, TEAM_EMAIL: env.TEAM_EMAIL, PERMISSION_GROUPS: env.PERMISSION_GROUPS]
+}
+
+def returnListOfCenmUpgradeJobs() {
+    def listOfCenmUpgradeJobs = []
+
+     // === Retrieve cENM Product Set Version From Backup Name  ===
+    listOfCenmUpgradeJobs = listOfCenmUpgradeJobs.plus('DSL/seedchildjobs/cenmretrieveproductsetversionfrombackupname/CenmRetrieveProductSetVersionFromBackupName.groovy')
+
+     // === Retrieve cENM Product Set Version From Config Map ===
+    listOfCenmUpgradeJobs = listOfCenmUpgradeJobs.plus('DSL/seedchildjobs/cenmretrievproductsetversionfromconfigmap/CenmRetrieveProductSetVersionFromConfigMap.groovy')
+
+    // === cENM Docker Registry Cleanup  ===
+    listOfCenmUpgradeJobs = listOfCenmUpgradeJobs.plus('DSL/seedchildjobs/cenmdockerregistrycleanup/CenmDockerRegistryCleanUp.groovy')
+
+    // === Retrieve Latest Green cENM Product Set Version ===
+    listOfCenmUpgradeJobs = listOfCenmUpgradeJobs.plus('DSL/seedchildjobs/cenmretrievelatestgreencenmproductsetversion/CenmRetrieveLatestGreenCenmProductSetVersion.groovy')
+
+    // === Determine latest PSV for Dropback Upgrade
+    listOfCenmUpgradeJobs = listOfCenmUpgradeJobs.plus('DSL/seedchildjobs/cenmdeterminedropbackupgrade/CenmDetermineDropbackUpgrade.groovy')
+
+    // === cENM RNL UG Deploy ===
+    listOfCenmUpgradeJobs = listOfCenmUpgradeJobs.plus('DSL/seedpipelines/cenm/upgrade/rnl/cenmupgrade/CenmUpgrade.groovy')
+
+    // === Retrieve ENM Product Set Version ===
+    listOfCenmUpgradeJobs = listOfCenmUpgradeJobs.plus('DSL/seedchildjobs/retrieveenmproductsetversion/RetrieveEnmProductSetVersion.groovy')
+
+    // === RNL UG Deployment Setup ===
+    listOfCenmUpgradeJobs = listOfCenmUpgradeJobs.plus('DSL/seedpipelines/cenm/upgrade/rnl/cenmupgradedeploymentsetup/CenmUpgradeDeploymentSetup.groovy')
+    listOfCenmUpgradeJobs = listOfCenmUpgradeJobs.plus('DSL/seedchildjobs/ddcsetup/CenmDdcSetup.groovy')
+    listOfCenmUpgradeJobs = listOfCenmUpgradeJobs.plus('DSL/seedchildjobs/pushdatatoddp/CenmPushDataToDdp.groovy')
+    // === RNL Download Node Package Flow ===
+    listOfCenmUpgradeJobs = listOfCenmUpgradeJobs.plus('DSL/seedpipelines/cenm/upgrade/rnl/cenmdownloadnodepackage/CenmDownloadNodePackage.groovy')
+
+    // === RNL DDRNL FLOW ===
+    listOfCenmUpgradeJobs = listOfCenmUpgradeJobs.plus('DSL/seedpipelines/cenm/upgrade/rnl/cenmddrnl/CenmDdrnl.groovy')
+
+    // === RNL UG Updater ===
+    listOfCenmUpgradeJobs = listOfCenmUpgradeJobs.plus('pipeline_generation/cenm/upgrade/rnl/DSL/cenmupgradepipelineupdater/CenmUpgradePipelineUpdater.groovy')
+
+    return listOfCenmUpgradeJobs
+}
+
+pipeline {
+    agent {
+        node {
+            label OPENSTACK_SLAVES
+        }
+    }
+
+    environment {
+        DSL_CLASSPATH = 'DSL'
+    }
+
+    stages {
+        stage ('Validate required parameters set') {
+            when {
+                anyOf {
+                    expression {
+                        env.REGULAR_SLAVES == null
+                    }
+                    expression {
+                        env.TE_DOCKER_SLAVES == null
+                    }
+                    expression {
+                        env.OPENSTACK_SLAVES == null
+                    }
+                    expression {
+                        env.TEAM_EMAIL == null
+                    }
+                }
+            }
+            steps {
+                error('Some required parameter(s) not set. Please supply a value for all required parameters')
+            }
+        }
+        stage ('Default PERMISSION_GROUPS if null') {
+            when {
+                expression {
+                    env.PERMISSION_GROUPS == null
+                }
+            }
+            steps {
+                script {
+                    env.PERMISSION_GROUPS = 'authenticated'
+                }
+            }
+        }
+
+        stage('Generate cENM Upgrade Pipeline Jobs') {
+            steps {
+                jobDsl targets: returnListOfCenmUpgradeJobs().join('\n'),
+                    additionalParameters: returnParametersForDsl(),
+                    additionalClasspath: env.DSL_CLASSPATH
+            }
+        }
+    }
+}

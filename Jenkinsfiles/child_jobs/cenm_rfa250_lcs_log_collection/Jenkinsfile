@@ -1,0 +1,74 @@
+import jenkins.model.*
+def SLAVE_FINAL = null
+
+node(SLAVE) {
+  stage('Determine Slave'){
+     if (env.is_network_type_STC == "true") {
+        SLAVE_FINAL = STC_SLAVE
+     } else {
+        SLAVE_FINAL = SLAVE
+     }
+   }
+}
+
+pipeline {
+
+    agent {
+        node {
+            label SLAVE_FINAL
+        }
+    }
+
+    options {
+        timestamps()
+    }
+
+    stages {
+        stage('Load common methods') {
+            steps {
+                script {
+                    commonMethods = load("${env.WORKSPACE}/Jenkinsfiles/common_methods/CommonMethods.groovy")
+                }
+            }
+        }
+
+        stage('Writing Parameters to parameters.properties') {
+            steps {
+                script {
+                    commonMethods.exportEnvVariablesToFile("parameters.properties")
+                }
+            }
+        }
+
+        stage('Downloading MT Utils Pipeline Scripts') {
+            steps {
+                script {
+                    commonMethods.downloadMtUtils()
+                }
+            }
+        }
+
+        stage('Resolve Drop and Product Set Version') {
+            steps {
+                sh "sh MTELoopScripts/pipeline_scripts/rfa_250_cenm_lcs_log_collection.sh ${WORKSPACE}/parameters.properties || exit 1"
+            }
+        }
+
+        stage('Inject environment variables') {
+            steps {
+                script {
+                    commonMethods.loadProperties("${WORKSPACE}/build.properties")
+                }
+            }
+        }
+
+        stage('Set build name and description') {
+            steps {
+                script {
+                    currentBuild.displayName = "Collects logs on ${cluster_id}"
+                    currentBuild.description = "<b>cluster_id=${cluster_id}<br>Test Phase = ${test_phase}<br>Product Set Version = ${cenm_product_set_version}</b>"
+                }
+            }
+        }
+    }
+}

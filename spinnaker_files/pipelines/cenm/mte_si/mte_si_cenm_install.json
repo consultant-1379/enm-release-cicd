@@ -1,0 +1,340 @@
+{
+  "application": "APPLICATION_NAME",
+  "disabled": false,
+  "keepWaitingPipelines": true,
+  "name": "PIPELINE_NAME",
+  "notifications": [
+    {
+      "address": "BumbleBee.ENM@tcs.com,hari.appari@tcs.com,nagendrayadav.peram-external@tcs.com",
+      "level": "pipeline",
+      "type": "email",
+      "when": [
+        "pipeline.failed"
+      ]
+    }
+  ],
+  "parameterConfig": [
+    {
+      "default": "",
+      "description": "",
+      "hasOptions": false,
+      "label": "",
+      "name": "environment_name",
+      "options": [
+        {
+          "value": ""
+        }
+      ],
+      "pinned": false,
+      "required": true
+    },
+    {
+      "default": "charts",
+      "description": "",
+      "hasOptions": true,
+      "label": "",
+      "name": "deployment_mechanism",
+      "options": [
+        {
+          "value": "charts"
+        },
+        {
+          "value": "csar"
+        }
+      ],
+      "pinned": false,
+      "required": true
+    },
+    {
+      "default": "eric-enm-single-instance-production-integration-values",
+      "description": "NOTE : CSAR supports only eric-enm-integration-production-values and eric-enm-integration-extra-large-production-values.",
+      "hasOptions": true,
+      "label": "",
+      "name": "integration_value_type",
+      "options": [
+        {
+          "value": "eric-enm-single-instance-production-integration-values"
+        },
+        {
+          "value": "eric-enm-integration-production-values"
+        },
+        {
+          "value": "eric-enm-integration-extra-large-production-values"
+        },
+        {
+          "value": "eric-enm-multi-instance-functional-integration-values"
+        },
+        {
+          "value": "eric-enm-integration-functional-test-values"
+        },
+        {
+          "value": "eric-enm-integration-openstack-core-values"
+        }
+      ],
+      "pinned": false,
+      "required": true
+    },
+    {
+      "default": "",
+      "description": "",
+      "hasOptions": false,
+      "label": "",
+      "name": "cenm_product_set_version",
+      "options": [
+        {
+          "value": ""
+        }
+      ],
+      "pinned": false,
+      "required": true
+    },
+    {
+      "default": "AUTO",
+      "description": "",
+      "hasOptions": false,
+      "label": "",
+      "name": "central_csv_version",
+      "options": [
+        {
+          "value": ""
+        }
+      ],
+      "pinned": false,
+      "required": true
+    },
+    {
+      "default": "",
+      "description": "",
+      "hasOptions": false,
+      "label": "",
+      "name": "drop",
+      "options": [
+        {
+          "value": ""
+        }
+      ],
+      "pinned": false,
+      "required": true
+    },
+    {
+      "default": "MAPPED",
+      "description": "",
+      "hasOptions": false,
+      "label": "",
+      "name": "tor_utils_version",
+      "options": [
+        {
+          "value": "NOT_REQUIRED"
+        },
+        {
+          "value": "LATEST"
+        }
+      ],
+      "pinned": false,
+      "required": true
+    },
+    {
+      "default": "MAPPED",
+      "description": "",
+      "hasOptions": false,
+      "label": "",
+      "name": "nss_utils_version",
+      "options": [
+        {
+          "value": ""
+        }
+      ],
+      "pinned": false,
+      "required": true
+    },
+    {
+      "default": "AUTO",
+      "description": "",
+      "hasOptions": false,
+      "label": "",
+      "name": "taf_version",
+      "options": [
+        {
+          "value": ""
+        }
+      ],
+      "pinned": false,
+      "required": true
+    },
+    {
+      "default": "MTE",
+      "description": "",
+      "hasOptions": false,
+      "label": "",
+      "name": "test_phase",
+      "options": [
+        {
+          "value": ""
+        }
+      ],
+      "pinned": false,
+      "required": true
+    },
+    {
+      "default": "YES",
+      "description": "Customers should set this parameter to YES only if NSS 15K network or 2K network is on the servers linked to ENM",
+      "hasOptions": true,
+      "label": "",
+      "name": "nodesCleanUp",
+      "options": [
+        {
+          "value": "NO"
+        },
+        {
+          "value": "YES"
+        }
+      ],
+      "pinned": false,
+      "required": true
+    },
+    {
+      "default": "AUTO",
+      "description": "",
+      "hasOptions": false,
+      "label": "",
+      "name": "taf_scheduler_version",
+      "options": [
+        {
+          "value": ""
+        }
+      ],
+      "pinned": false,
+      "required": true
+    },
+    {
+      "default": "YES",
+      "description": "",
+      "hasOptions": true,
+      "label": "",
+      "name": "send_confidence_level",
+      "options": [
+        {
+          "value": "YES"
+        },
+        {
+          "value": "NO"
+        }
+      ],
+      "pinned": false,
+      "required": true
+    }
+  ],
+  "spelEvaluator": "v4",
+  "stages": [
+    {
+      "continuePipeline": false,
+      "failPipeline": true,
+      "job": "MTE_SI_cENM_Initial_Install_Functional_Flow",
+      "master": "FEM_CONTROLLER",
+      "name": "MTE_SI_cENM_Initial_Install_Flow",
+      "parameters": {
+        "cenm_product_set_version": "${parameters['cenm_product_set_version']}",
+        "cluster_id": "${parameters['environment_name']}",
+        "drop": "${parameters['drop']}",
+        "deployment_mechanism": "${parameters['deployment_mechanism']}",
+        "integration_value_type": "${parameters['integration_value_type']}",
+        "send_confidence_level": "${parameters['send_confidence_level']}"
+    },
+    "refId": "2",
+    "requisiteStageRefIds": [
+        "6"
+    ],
+    "stageTimeoutMs": 36000000,
+    "type": "jenkins"
+    },
+    {
+      "continuePipeline": false,
+      "failPipeline": true,
+      "job": "cENM_Retrieve_ENM_Product_Set_Version",
+      "master": "FEM_CONTROLLER",
+      "name": "MTE_SI_cENM_Retrieve_ENM_Product_Set_Flow",
+      "parameters": {
+        "product_set_version": "${parameters['cenm_product_set_version']}",
+        "cluster_id": "${parameters['environment_name']}"
+      },
+      "propertyFile": "artifact.properties",
+      "refId": "3",
+      "requisiteStageRefIds": [
+        "2"
+      ],
+      "stageTimeoutMs": 36000000,
+      "type": "jenkins"
+    },
+    {
+      "continuePipeline": false,
+      "failPipeline": true,
+      "job": "MTE_SI_cENM_Install_Deployment_Setup_Flow",
+      "master": "FEM_CONTROLLER",
+      "name": "MTE_SI_cENM_Deployment_Setup",
+      "parameters": {
+        "cenm_product_set_version": "${parameters['cenm_product_set_version']}",
+        "central_csv_version": "${parameters['central_csv_version']}",
+        "cluster_id": "${parameters['environment_name']}",
+        "deployment_type": "cloud_native",
+        "drop": "${parameters['drop']}",
+        "nss_utils_version": "${parameters['nss_utils_version']}",
+        "product_set_version": "${#stage('MTE_SI_cENM_Retrieve_ENM_Product_Set_Flow')['context']['enm_product_set_version']}",
+        "taf_version": "${parameters['taf_version']}",
+        "test_phase": "${parameters['test_phase']}",
+        "send_confidence_level": "${parameters['send_confidence_level']}",
+        "nodesCleanUp": "${parameters['nodesCleanUp']}",
+        "tor_utils_version": "${parameters['tor_utils_version']}"
+      },
+      "refId": "4",
+      "requisiteStageRefIds": [
+        "3"
+      ],
+      "stageTimeoutMs": 36000000,
+      "type": "jenkins"
+    },
+    {
+      "continuePipeline": false,
+      "failPipeline": true,
+      "job": "MTE_SI_cENM_Install_Acceptance_Tests_Flow",
+      "master": "FEM_CONTROLLER",
+      "name": "MTE_SI_cENM_Functional_Acceptance_Smoke_Test",
+      "parameters": {
+        "cenm_product_set_version": "${parameters['cenm_product_set_version']}",
+        "cluster_id": "${parameters['environment_name']}",
+        "drop": "${parameters['drop']}",
+        "central_csv_version": "${parameters['central_csv_version']}",
+        "taf_scheduler_version": "${parameters['taf_scheduler_version']}",
+        "product_set_version": "${#stage('MTE_SI_cENM_Retrieve_ENM_Product_Set_Flow')['context']['enm_product_set_version']}",
+        "send_confidence_level": "${parameters['send_confidence_level']}",
+        "taf_version": "${parameters['taf_version']}",
+        "test_phase": "${parameters['test_phase']}"
+      },
+      "propertyFile": "",
+      "refId": "5",
+      "requisiteStageRefIds": [
+        "4"
+      ],
+      "stageTimeoutMs": 36000000,
+      "type": "jenkins"
+    },
+    {
+      "continuePipeline": false,
+      "failPipeline": true,
+      "job": "cENM_Initial_UnInstall_Functional_Flow",
+      "master": "FEM_CONTROLLER",
+      "name": "MTE_SI_cENM_Teardown",
+      "parameters": {
+        "cluster_id": "${parameters['environment_name']}"
+      },
+      "refId": "6",
+      "requisiteStageRefIds": [],
+      "stageEnabled": {
+        "expression": "trigger[\"parameters\"][\"deployment_mechanism\"] == \"charts\"",
+        "type": "expression"
+      },
+      "stageTimeoutMs": 36000000,
+      "type": "jenkins"
+    }
+  ],
+  "triggers": []
+}

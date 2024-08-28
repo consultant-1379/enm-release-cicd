@@ -1,0 +1,19 @@
+def callChildJob(checkJobBuildable) {
+    stage('cENM RVB Copy TestScripts Repo') {
+        if (checkJobBuildable("cENM_RVB_Copy_TestScripts_Repo")) {
+            def Cenm_RVB_Copy_TestScripts_Repo = build(
+                job: "cENM_RVB_Copy_TestScripts_Repo",
+                propagate: true,
+                wait: true,
+                parameters: [
+                    string(name: 'cluster_id', value: env.cluster_id),
+                    string(name: 'mt_utils_version', value: env.mt_utils_version),
+                ]
+            )
+        } else {
+            echo "cENM_RVB_Copy_TestScripts_Repo Job is disabled. So skipping"
+        }
+    }
+}
+
+return this

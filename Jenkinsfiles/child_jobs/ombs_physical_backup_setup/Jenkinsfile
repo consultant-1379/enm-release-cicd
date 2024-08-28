@@ -1,0 +1,137 @@
+def commonMethods
+
+pipeline {
+    agent {
+        node {
+            label SLAVE
+        }
+    }
+    options {
+        timestamps()
+    }
+    stages {
+        stage('Load common methods') {
+            steps {
+                script {
+                    commonMethods = load("${env.WORKSPACE}/Jenkinsfiles/common_methods/CommonMethods.groovy")
+                }
+            }
+        }
+
+        stage('Writing Parameters to parameters.properties') {
+            steps {
+                script {
+                    commonMethods.exportEnvVariablesToFile("parameters.properties")
+                }
+            }
+        }
+
+        stage('Set build name') {
+            steps {
+                script {
+                    currentBuild.displayName = "OMBS Backup on ${cluster_id}"
+                }
+            }
+        }
+
+        stage('Downloading MT Utils Pipeline Scripts') {
+            steps {
+                script {
+                    commonMethods.downloadMtUtils()
+                }
+            }
+        }
+
+        stage('Running ENM Health Check') {
+            steps {
+                script {
+                    sh '''
+                        sh MTELoopScripts/pipeline_scripts/physical_ombs_backup_setup.sh "${WORKSPACE}/parameters.properties" "run_enm_healthcheck" || exit 1
+                    '''
+                }
+            }
+        }
+
+        stage('Check Existing OMBS Backup Ongoing') {
+            steps {
+                script {
+                    sh '''
+                        sh MTELoopScripts/pipeline_scripts/physical_ombs_backup_setup.sh "${WORKSPACE}/parameters.properties" "check_active_backup" || exit 1
+                    '''
+                }
+            }
+        }
+
+        stage('Activate OMBS Backup') {
+            steps {
+                script {
+                    sh '''
+                        sh MTELoopScripts/pipeline_scripts/physical_ombs_backup_setup.sh "${WORKSPACE}/parameters.properties" "activate_backup" || exit 1
+                    '''
+                }
+            }
+        }
+
+        stage('Remove Snapshots') {
+            steps {
+                script {
+                    sh '''
+                        sh MTELoopScripts/pipeline_scripts/physical_ombs_backup_setup.sh "${WORKSPACE}/parameters.properties" "remove_snapshots" || exit 1
+                    '''
+                }
+            }
+        }
+
+        stage('Check and Remove lock file') {
+            steps {
+                script {
+                    sh '''
+                        sh MTELoopScripts/pipeline_scripts/physical_ombs_backup_setup.sh "${WORKSPACE}/parameters.properties" "check_for_lock_file" || exit 1
+                    '''
+                }
+            }
+        }
+
+        stage('OMBS Physical Policy Upgrade') {
+            when {
+                expression {
+                    env.trigger_ombs_policy_upgrade == "true"
+                }
+            }
+            steps {
+                script {
+                    if (checkJobBuildable("Physical_Update_OMBS_Software")) {
+                        def Update_OMBS_Software = build(
+                            job: "Physical_Update_OMBS_Software",
+                            propagate: false,
+                            wait: true,
+                            parameters: [
+                                string(name: 'test_phase', value: env.test_phase),
+                                string(name: 'mt_utils_version', value: 'RELEASE'),
+                                string(name: 'cluster_id', value: env.cluster_id),
+                                string(name: 'deploy_phase', value: env.deploy_phase),
+                            ]
+                        )
+                    } else {
+                        echo "Physical_Update_OMBS_Software Job is disabled. So skipping"
+                    }
+                }
+            }
+        }
+
+        stage('Start and Monitor OMBS Backup') {
+            steps {
+                script {
+                    sh '''
+                        sh MTELoopScripts/pipeline_scripts/physical_ombs_backup_setup.sh "${WORKSPACE}/parameters.properties" "start_and_monitor_backup" || exit 1
+                    '''
+                }
+            }
+        }
+    }
+}
+
+def checkJobBuildable(jobName) {
+    def isBuildable = Jenkins.instance.getItem(jobName).isBuildable();
+    return isBuildable
+}

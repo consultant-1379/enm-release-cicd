@@ -1,0 +1,285 @@
+import jenkins.model.*
+def SLAVE_FINAL = null
+
+node(SLAVE) {
+  stage('Determine Slave'){
+     if (env.is_network_type_STC == "true") {
+        SLAVE_FINAL = STC_SLAVE
+     } else {
+        SLAVE_FINAL = SLAVE
+     }
+   }
+}
+
+pipeline {
+
+    agent {
+        node {
+            label SLAVE_FINAL
+        }
+    }
+
+    options {
+        timestamps()
+    }
+
+    stages {
+        stage('Set build name and description') {
+            steps {
+                script {
+                    currentBuild.displayName = "Network and Workload Setup on ${cluster_id}"
+                    currentBuild.description = "<b>MT Utils Version = ${mt_utils_version}<br>Add Nodes To ENM = ${nodes_to_add_to_enm}<br>Add Nodes To Workpool = ${nodes_to_add_to_workpool}<br>Workload Profiles = ${workload_profiles}</b>"
+                }
+            }
+        }
+
+        stage('Load common methods') {
+            steps {
+                script {
+                    commonMethods = load("${env.WORKSPACE}/Jenkinsfiles/common_methods/CommonMethods.groovy")
+                }
+            }
+        }
+
+        stage('Writing Parameters to parameters.properties') {
+            steps {
+                script {
+                    commonMethods.exportEnvVariablesToFile("parameters.properties")
+                }
+            }
+        }
+
+        stage('Downloading MT Utils Pipeline Scripts') {
+            steps {
+                downloadMtUtils()
+            }
+        }
+
+        stage('Storing Job Details in Slave') {
+            steps {
+                script {
+                    def node_name = "${SLAVE_FINAL}"
+                    def date = new Date()
+                    sh " echo \" NODE_NAME : ${env.NODE_NAME} ; JOB_NAME : ${env.JOB_NAME} ; BUILD_NUMBER : ${env.BUILD_NUMBER} ; $date \" >> \"/home/lciadm100/jenkins/job_details.log\" "
+                }
+            }
+        }
+
+        stage('Inject build.properties') {
+            steps {
+                loadProperties("${WORKSPACE}/build.properties")
+            }
+        }
+
+        stage('Execute EMT Pipeline script') {
+            steps{
+              sh "MTELoopScripts/pipeline_scripts/emt/jenkins/final_build_setup.sh ${WORKSPACE}/parameters.properties initial || exit 1"
+            }
+        }
+
+        stage('cENM Fetch Network') {
+            steps {
+                script {
+                    if (checkJobBuildable("cENM_Fetch_Network")) {
+                        def Cenm_Fetch_Network = build(
+                            job: "cENM_Fetch_Network",
+                            propagate: true,
+                            wait: true,
+                            parameters: [
+                                string(name: 'cluster_id', value: env.cluster_id),
+                                string(name: 'product_set_version', value: env.product_set_version),
+                                string(name: 'mt_utils_version', value: env.mt_utils_version),
+                                string(name: 'force_arne_xml_creation', value: env.force_arne_xml_creation),
+                                string(name: 'is_network_type_STC', value: env.is_network_type_STC),
+                            ]
+                        )
+                    } else {
+                        echo "cENM_Fetch_Network Job is disabled. So skipping"
+                    }
+                }
+            }
+        }
+
+        stage('cENM Add Network') {
+            steps {
+                script {
+                    if (checkJobBuildable("cENM_Add_Network")) {
+                        def Cenm_Add_Network = build(
+                            job: "cENM_Add_Network",
+                            propagate: true,
+                            wait: true,
+                            parameters: [
+                                string(name: 'cluster_id', value: env.cluster_id),
+                                string(name: 'nodes_to_add_to_enm', value: env.nodes_to_add_to_enm),
+                                string(name: 'mt_utils_version', value: env.mt_utils_version),
+                                string(name: 'drop', value: env.drop),
+                                string(name: 'is_network_type_STC', value: env.is_network_type_STC),
+                            ]
+                        )
+                    } else {
+                        echo "cENM_Add_Network Job is disabled. So skipping"
+                    }
+                }
+            }
+        }
+
+        stage('cENM Manage And Supervise Network') {
+            steps {
+                script {
+                    if (checkJobBuildable("cENM_Manage_And_Supervise_Network")) {
+                        def Cenm_Manage_And_Supervise_Network = build(
+                            job: "cENM_Manage_And_Supervise_Network",
+                            propagate: true,
+                            wait: true,
+                            parameters: [
+                                string(name: 'cluster_id', value: env.cluster_id),
+                                string(name: 'supervision_types', value: env.supervision_types),
+                                string(name: 'mt_utils_version', value: env.mt_utils_version),
+                                string(name: 'test_phase', value: env.test_phase),
+                                string(name: 'is_network_type_STC', value: env.is_network_type_STC),
+                            ]
+                        )
+                    } else {
+                        echo "cENM_Manage_And_Supervise_Network Job is disabled. So skipping"
+                    }
+                }
+            }
+        }
+
+        stage('cENM Manage PM Function') {
+            steps {
+                script {
+                    if (checkJobBuildable("cENM_Manage_PM_Function")) {
+                        def Cenm_Manage_PM_Function = build(
+                            job: "cENM_Manage_PM_Function",
+                            propagate: true,
+                            wait: true,
+                            parameters: [
+                                string(name: 'cluster_id', value: env.cluster_id),
+                                string(name: 'supervision_types', value: env.supervision_types),
+                                string(name: 'mt_utils_version', value: env.mt_utils_version),
+                                string(name: 'is_network_type_STC', value: env.is_network_type_STC),
+                            ]
+                        )
+                    } else {
+                        echo "cENM_Manage_PM_Function Job is disabled. So skipping"
+                    }
+                }
+            }
+        }
+
+        stage('cENM Add Nodes To Workload Pool') {
+            steps {
+                script {
+                    if (checkJobBuildable("Cenm_Add_Nodes_To_Workload_Pool")) {
+                        def Cenm_Add_Nodes_To_Workload_Pool = build(
+                            job: "Cenm_Add_Nodes_To_Workload_Pool",
+                            propagate: true,
+                            wait: true,
+                            parameters: [
+                                string(name: 'cluster_id', value: env.cluster_id),
+                                string(name: 'nodes_to_add_to_workpool', value: env.nodes_to_add_to_workpool),
+                                string(name: 'mt_utils_version', value: env.mt_utils_version),
+                                string(name: 'is_network_type_STC', value: env.is_network_type_STC),
+                            ]
+                        )
+                    } else {
+                        echo "Cenm_Add_Nodes_To_Workload_Pool Job is disabled. So skipping"
+                    }
+                }
+            }
+        }
+
+        stage('cENM Apply Priority 1 Workload') {
+            steps {
+                script {
+                    if (checkJobBuildable("cENM_Apply_Priority_1_Workload")) {
+                        def Cenm_Apply_Priority_1_Workload = build(
+                            job: "cENM_Apply_Priority_1_Workload",
+                            propagate: false,
+                            wait: true,
+                            parameters: [
+                                string(name: 'cluster_id', value: env.cluster_id),
+                                string(name: 'workload_profiles', value: env.workload_profiles),
+                                string(name: 'mt_utils_version', value: env.mt_utils_version),
+                                string(name: 'test_phase', value: env.test_phase),
+                                string(name: 'is_network_type_STC', value: env.is_network_type_STC),
+                            ]
+                        )
+                    } else {
+                        echo "cENM_Apply_Priority_1_Workload Job is disabled. So skipping"
+                    }
+                }
+            }
+        }
+
+        stage('cENM Apply Priority 2 Workload') {
+            steps {
+                script {
+                    if (checkJobBuildable("cENM_Apply_Priority_2_Workload")) {
+                        def Cenm_Apply_Priority_2_Workload = build(
+                            job: "cENM_Apply_Priority_2_Workload",
+                            propagate: false,
+                            wait: true,
+                            parameters: [
+                                string(name: 'cluster_id', value: env.cluster_id),
+                                string(name: 'workload_profiles', value: env.workload_profiles),
+                                string(name: 'mt_utils_version', value: env.mt_utils_version),
+                                string(name: 'test_phase', value: env.test_phase),
+                                string(name: 'is_network_type_STC', value: env.is_network_type_STC),
+                            ]
+                        )
+                    } else {
+                        echo "cENM_Apply_Priority_2_Workload Job is disabled. So skipping"
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            script {
+                sh "MTELoopScripts/pipeline_scripts/emt/jenkins/final_build_setup.sh ${WORKSPACE}/parameters.properties post_build || exit 1"
+            }
+        }
+    }
+}
+
+def checkJobBuildable(jobName) {
+    def isBuildable = Jenkins.instance.getItem(jobName).isBuildable();
+    return isBuildable
+}
+
+def loadProperties(filePath) {
+    def buildProperties = readProperties file: filePath
+    variableNames = buildProperties.keySet()
+    for(variableName in variableNames) {
+        variableValue = buildProperties["${variableName}"]
+        env."${variableName}" = "${variableValue}"
+    }
+}
+
+def exportEnvVariablesToFile(String fileName) {
+    String properties = ""
+    env.getEnvironment().each { name, value ->
+        if(!value.contains("#") && !value.isEmpty()) {
+            properties += "${name}=${value}\n"
+        }
+    }
+    writeFile file: fileName, text: properties
+}
+
+def downloadMtUtils() {
+    sh '''
+        echo "INFO: Retrieving Scripts from Nexus"
+        tar_file_name="utils_${mt_utils_version}.tar.gz"
+        echo "INFO: Downloading file - ${tar_file_name} - to the workspace"
+        if [[ "${mt_utils_version}" == *"SNAPSHOT"* ]]; then
+            curl -s --noproxy \\* -L "https://arm1s11-eiffel004.eiffel.gic.ericsson.se:8443/nexus/service/local/artifact/maven/redirect?r=snapshots&g=com.ericsson.mtg&a=utils&p=tar.gz&v=${mt_utils_version}" -o ${tar_file_name}
+        else
+            curl -s --noproxy \\* -L "https://arm1s11-eiffel004.eiffel.gic.ericsson.se:8443/nexus/service/local/artifact/maven/redirect?r=releases&g=com.ericsson.mtg&a=utils&p=tar.gz&v=${mt_utils_version}" -o ${tar_file_name}
+        fi
+        tar -zxf ${tar_file_name}
+    '''
+}

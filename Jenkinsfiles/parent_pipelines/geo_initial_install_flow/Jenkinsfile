@@ -1,0 +1,180 @@
+import jenkins.model.*
+
+pipeline {
+
+    agent {
+        node {
+            label SLAVE
+        }
+    }
+
+    options {
+        timestamps()
+    }
+
+    stages {
+        stage('Writing Parameters to parameters.properties') {
+            steps {
+                exportEnvVariablesToFile("parameters.properties")
+            }
+        }
+
+        stage('Set build name') {
+            steps {
+                script {
+                    currentBuild.displayName = "initial_install_Full on ${cluster_id}"
+                }
+            }
+        }
+
+        stage('Downloading MT Utils Pipeline Scripts') {
+            steps {
+                downloadMtUtils()
+            }
+        }
+
+        stage('Execute setup script') {
+            steps {
+                script {
+                    sh "sh MTELoopScripts/pipeline_scripts/geo_initial_install_setup.sh ${WORKSPACE}/parameters.properties || exit 1"
+                }
+            }
+        }
+
+        stage('Inject build.properties') {
+            steps {
+                loadProperties("${WORKSPACE}/build.properties")
+            }
+        }
+
+        stage('Set build description') {
+            steps {
+                script {
+                   currentBuild.description = "<b>Product Set Version = ${product_set_version}<br>MT Utils Version = ${mt_utils_version}</b>"
+                }
+            }
+        }
+
+        stage('Physical Initial Install') {
+            steps {
+                script {
+                    if (checkJobBuildable("Physical_Initial_Install")) {
+                        def Physical_Initial_Install = build(
+                            job: "Physical_Initial_Install",
+                            propagate: true,
+                            wait: true,
+                            parameters: [
+                                string(name: "test_phase", value:env.test_phase),
+                                string(name: "mt_utils_version", value:env.mt_utils_version),
+                                string(name: "drop", value:env.drop),
+                                string(name: "product_set_version", value:env.product_set_version),
+                                string(name: "cluster_id", value:env.cluster_id),
+                                string(name: "deploy_phase", value:"initial_install_Full"),
+                                string(name: "xml", value:env.xml),
+                                string(name: "sed_version", value:env.sed_version),
+                                string(name: "run_os_install_or_upgrade", value:env.run_os_install_or_upgrade),
+                                string(name: "run_litp_install_or_upgrade", value:env.run_litp_install_or_upgrade),
+                                string(name: "run_os_patch_install_or_upgrade", value:env.run_os_patch_install_or_upgrade),
+                                string(name: "send_confidence_level", value:"NO"),
+                                string(name: "confidence_level", value:"CDB_Dummy"),
+                                string(name: "pre_install_workload_cleanup", value:env.pre_install_workload_cleanup)
+                            ]
+                        )
+                    } else {
+                        echo "Physical_Initial_Install Job is disabled. So skipping"
+                    }
+                }
+            }
+        }
+
+        stage('Physical Remove And Create Snapshot') {
+            steps {
+                script {
+                    if (checkJobBuildable("Physical_Remove_And_Create_Snapshot")) {
+                        def Physical_Remove_And_Create_Snapshot = build(
+                            job: "Physical_Remove_And_Create_Snapshot",
+                            propagate: true,
+                            wait: true,
+                            parameters: [
+                                string(name: "remove_old_snapshot", value:"false"),
+                                string(name: "test_phase", value:env.test_phase),
+                                string(name: "cluster_id", value:env.cluster_id),
+                                string(name: "drop", value:env.drop),
+                                string(name: "product_set_version", value:env.product_set_version),
+                                string(name: "mt_utils_version", value:env.mt_utils_version)
+                            ]
+                        )
+                    } else {
+                        echo "Physical_Remove_And_Create_Snapshot Job is disabled. So skipping"
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            script {
+                if (checkJobBuildable("GEO_Physical_Deployment_Setup_Flow")) {
+                    def Geo_Physical_Deployment_Setup_Flow = build(
+                        job: "GEO_Physical_Deployment_Setup_Flow",
+                        propagate: false,
+                        wait: false,
+                        parameters: [
+                            string(name: "drop", value:env.drop),
+                            string(name: "product_set_version", value:env.product_set_version),
+                            string(name: "cluster_id", value:env.cluster_id),
+                            string(name: "mt_utils_version", value:env.mt_utils_version),
+                            string(name: "test_phase", value:env.test_phase),
+                            string(name: "apt_version", value:env.apt_version),
+                            string(name: "nss_utils_version", value:env.nss_utils_version),
+                            string(name: "non_critical_data_list", value:env.non_critical_data_list),
+                            string(name: "nodesCleanUp", value:env.nodesCleanUp)
+                        ]
+                    )
+                } else {
+                    echo "GEO_Physical_Deployment_Setup_Flow Job is disabled. So skipping"
+                }
+            }
+        }
+    }
+}
+
+def loadProperties(filePath) {
+    def buildProperties = readProperties file: filePath
+    variableNames = buildProperties.keySet()
+    for(variableName in variableNames) {
+        variableValue = buildProperties["${variableName}"]
+        env."${variableName}" = "${variableValue}"
+    }
+}
+
+def checkJobBuildable(jobName) {
+    def isBuildable = Jenkins.instance.getItem(jobName).isBuildable();
+    return isBuildable
+}
+
+def exportEnvVariablesToFile(String fileName) {
+    String properties = ""
+    env.getEnvironment().each { name, value ->
+        if(!value.contains("#") && !value.isEmpty()) {
+            properties += "${name}=${value}\n"
+        }
+    }
+    writeFile file: fileName, text: properties
+}
+
+def downloadMtUtils() {
+    sh '''
+        echo "INFO: Retrieving Scripts from Nexus"
+        tar_file_name="utils_${mt_utils_version}.tar.gz"
+        echo "INFO: Downloading file - ${tar_file_name} - to the workspace"
+        if [[ "${mt_utils_version}" == *"SNAPSHOT"* ]]; then
+            curl -s --noproxy \\* -L "https://arm1s11-eiffel004.eiffel.gic.ericsson.se:8443/nexus/service/local/artifact/maven/redirect?r=snapshots&g=com.ericsson.mtg&a=utils&p=tar.gz&v=${mt_utils_version}" -o ${tar_file_name}
+        else
+            curl -s --noproxy \\* -L "https://arm1s11-eiffel004.eiffel.gic.ericsson.se:8443/nexus/service/local/artifact/maven/redirect?r=releases&g=com.ericsson.mtg&a=utils&p=tar.gz&v=${mt_utils_version}" -o ${tar_file_name}
+        fi
+        tar -zxf ${tar_file_name}
+    '''
+}
+

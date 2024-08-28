@@ -1,0 +1,129 @@
+def commonMethods
+
+pipeline {
+    agent {
+        node {
+            label SLAVE
+        }
+    }
+    options {
+        timestamps()
+    }
+    stages {
+        stage('Load common methods') {
+            steps {
+                script {
+                    commonMethods = load("${env.WORKSPACE}/Jenkinsfiles/common_methods/CommonMethods.groovy")
+                }
+            }
+        }
+
+        stage('Writing Parameters to parameters.properties') {
+            steps {
+                script {
+                    commonMethods.exportEnvVariablesToFile("parameters.properties")
+                }
+            }
+        }
+
+        stage('Downloading MT Utils Pipeline Scripts') {
+            steps {
+                script {
+                    commonMethods.downloadMtUtils()
+                }
+            }
+        }
+
+        stage('Execute EMT Pipeline script') {
+            steps{
+              sh "MTELoopScripts/pipeline_scripts/emt/jenkins/intermediate_build_setup.sh ${WORKSPACE}/parameters.properties initial || exit 1"
+            }
+        }
+
+        stage('cENM Pre_ADU nodes Clean up') {
+            when{
+                expression { env.trigger_ha_01 == 'start'}
+            }
+            steps {
+                script {
+                    sh '''
+                        echo "setup_phase=pre_adu_cleanup" >> ${WORKSPACE}/parameters.properties
+                        sh MTELoopScripts/pipeline_scripts/cenm_start_stop_ha_01_profile_setup.sh ${WORKSPACE}/parameters.properties || exit 1
+                        '''
+                }
+            }
+        }
+
+        stage('fetches the network for HA_01 workload Profile') {
+            when{
+                expression { env.trigger_ha_01 == 'start' }
+            }
+            steps{
+                sh '''
+                    echo "base_dir=${WORKSPACE}" >> ${WORKSPACE}/parameters.properties
+                    sh MTELoopScripts/pipeline_scripts/fetch_network_setup.sh ${WORKSPACE}/parameters.properties || exit 1
+                '''
+            }
+        }
+
+        stage('cENM Add Network') {
+            when{
+                expression { env.trigger_ha_01 == 'start' }
+            }
+            steps {
+                script {
+                    if (checkJobBuildable("cENM_Add_Network")) {
+                        def Cenm_Add_Network = build(
+                        job: "cENM_Add_Network",
+                        propagate: true,
+                        wait: true,
+                        parameters: [
+                            string(name: 'cluster_id', value: env.cluster_id),
+                            string(name: 'nodes_to_add_to_enm', value: 'ERBS,Router6672,BSC'),
+                            string(name: 'mt_utils_version', value: env.mt_utils_version),
+                            string(name: 'drop', value: env.drop),
+                        ]
+                    )
+                } else {
+                        echo "cENM_Add_Network Job is disabled. So skipping"
+                    }
+                }
+            }
+        }
+
+        stage('Triggers the HA_01 workload Profile') {
+            steps{
+                sh '''
+                    if [[ "${trigger_ha_01}" == "start" ]]; then
+                        echo "setup_phase=start_ha_01" >> ${WORKSPACE}/parameters.properties
+                        sh MTELoopScripts/pipeline_scripts/cenm_start_stop_ha_01_profile_setup.sh ${WORKSPACE}/parameters.properties || exit 1
+                    elif [[ "${trigger_ha_01}" == "stop" ]]; then
+                        echo "setup_phase=stop_ha_01" >> ${WORKSPACE}/parameters.properties
+                        sh MTELoopScripts/pipeline_scripts/cenm_start_stop_ha_01_profile_setup.sh ${WORKSPACE}/parameters.properties || exit 1
+                    fi
+                '''
+            }
+        }
+
+        stage('Set build name and description') {
+            steps {
+                script {
+                    currentBuild.description = "<b>Test Phase = ${test_phase}<br>Cluster ID = ${cluster_id}</b>"
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            script {
+                sh "MTELoopScripts/pipeline_scripts/emt/jenkins/intermediate_build_setup.sh ${WORKSPACE}/parameters.properties post_build || exit 1"
+            }
+        }
+    }
+}
+
+def checkJobBuildable(jobName) {
+    def isBuildable = Jenkins.instance.getItem(jobName).isBuildable();
+    return isBuildable
+}

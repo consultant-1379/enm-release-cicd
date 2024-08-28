@@ -1,0 +1,37 @@
+pipeline {
+    agent {
+        node {
+            label SLAVE
+        }
+    }
+
+    options {
+        timestamps()
+    }
+
+    stages {
+        stage('Set build name and description') {
+            steps {
+                script {
+                    currentBuild.displayName = "Updating spinnaker MTE cENM UG pipeline on ${spinnaker_application_name}"
+                    currentBuild.description = "<b>Fem Controller Name = ${fem_controller_name}</b>"
+                }
+            }
+        }
+        stage('Updating MTE cENM upgrade json file with inputed parameters') {
+            steps {
+                sh 'sh ${WORKSPACE}/cicd/cicd_scripts/pipeline_generation_scripts/configure_spinnaker_json_files_with_specified_variables.sh \"${spinnaker_application_name}\" \"${spinnaker_pipeline_name}\" \"${fem_controller_name}\" \"${sync_trigger_fem_controller_name}\" \"mte\" \"upgrade\"'
+            }
+        }
+        stage('Update spinnaker pipeline') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'bb_func_user', usernameVariable: 'USER', passwordVariable: 'PASS')]) {
+                  echo 'Set up spin cli config file'
+                  sh 'sh ${WORKSPACE}/cicd/cicd_scripts/pipeline_generation_scripts/configure_spin_cli_config.sh \"${USER}\" \"${PASS}\"'
+                  echo 'Rolling out spinnaker pipeline changes...'
+                  sh 'docker run -v ${WORKSPACE}/spinnaker_files/config/spin_cli.config:/root/.spin/config:ro -v ${WORKSPACE}/spinnaker_files/pipelines/cenm/mte/mte_cenm_upgrade.json:/pipeline.json:ro --rm armdocker.rnd.ericsson.se/proj-adp-cicd-drop/spin spin pipeline save --file /pipeline.json'
+                }
+            }
+        }
+    }
+}

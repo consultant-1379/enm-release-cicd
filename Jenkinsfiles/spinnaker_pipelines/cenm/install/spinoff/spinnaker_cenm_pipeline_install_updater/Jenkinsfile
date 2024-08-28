@@ -1,0 +1,37 @@
+pipeline {
+    agent {
+        node {
+            label SLAVE
+        }
+    }
+
+    options {
+        timestamps()
+    }
+
+    stages {
+        stage('Set build name and description') {
+            steps {
+                script {
+                    currentBuild.displayName = "Updating spinnaker SPINOFF cENM II pipeline on ${spinnaker_application_name}"
+                    currentBuild.description = "<b>Fem Controller Name = ${fem_controller_name}</b>"
+                }
+            }
+        }
+        stage('Updating SPINOFF cENM install json file with inputted parameters') {
+            steps {
+                sh 'sh ${WORKSPACE}/cicd/cicd_scripts/pipeline_generation_scripts/configure_spinnaker_json_files_with_specified_variables.sh \"${spinnaker_application_name}\" \"${spinnaker_pipeline_name}\" \"${fem_controller_name}\" \"${sync_trigger_fem_controller_name}\" \"spinoff\" \"install\"'
+            }
+        }
+        stage('Update spinnaker pipeline') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'bb_func_user', usernameVariable: 'USER', passwordVariable: 'PASS')]) {
+                  echo 'Set up spin cli config file'
+                  sh 'sh ${WORKSPACE}/cicd/cicd_scripts/pipeline_generation_scripts/configure_spin_cli_config.sh \"${USER}\" \"${PASS}\"'
+                  echo 'Rolling out spinnaker pipeline changes...'
+                  sh 'docker run -v ${WORKSPACE}/spinnaker_files/config/spin_cli.config:/root/.spin/config:ro -v ${WORKSPACE}/spinnaker_files/pipelines/cenm/spinoff/spinoff_cenm_install.json:/pipeline.json:ro --rm armdocker.rnd.ericsson.se/proj-adp-cicd-drop/spin spin pipeline save --file /pipeline.json'
+                }
+            }
+        }
+    }
+}

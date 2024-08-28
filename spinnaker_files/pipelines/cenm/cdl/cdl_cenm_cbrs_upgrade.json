@@ -1,0 +1,640 @@
+{
+    "application": "APPLICATION_NAME",
+    "disabled": false,
+    "keepWaitingPipelines": true,
+    "name": "PIPELINE_NAME",
+    "notifications": [
+      {
+        "address": "BumbleBee.ENM@tcs.com",
+        "cc": "",
+        "level": "pipeline",
+        "type": "email",
+        "when": [
+          "pipeline.failed"
+        ]
+      }
+    ],
+    "parameterConfig": [
+      {
+        "default": "",
+        "description": "",
+        "hasOptions": false,
+        "label": "",
+        "name": "environment_name",
+        "options": [
+          {
+            "value": ""
+          }
+        ],
+        "pinned": false,
+        "required": true
+      },
+      {
+        "default": "True",
+        "description": "",
+        "hasOptions": true,
+        "label": "",
+        "name": "is_dit_versioning_applied",
+        "options": [
+          {
+            "value": "False"
+          },
+          {
+            "value": "True"
+          }
+        ],
+        "pinned": false,
+        "required": true
+      },
+      {
+        "default": "False",
+        "description": "",
+        "hasOptions": true,
+        "label": "",
+        "name": "Trigger_Health_Check",
+        "options": [
+          {
+            "value": "True"
+          },
+          {
+            "value": "False"
+          }
+        ],
+        "pinned": false,
+        "required": true
+      },
+      {
+        "default": "csar",
+        "description": "",
+        "hasOptions": true,
+        "label": "",
+        "name": "Artifact_type",
+        "options": [
+          {
+            "value": "csar_lite"
+          },
+          {
+            "value": "csar"
+          },
+          {
+            "value": "snapshot_csar_lite"
+          }
+        ],
+        "pinned": false,
+        "required": true
+      },
+      {
+        "default": "Upgrade",
+        "description": "",
+        "hasOptions": true,
+        "label": "",
+        "name": "use_case",
+        "options": [
+          {
+            "value": "Upgrade"
+          }
+        ],
+        "pinned": false,
+        "required": true
+      },
+      {
+        "default": "small-production",
+        "description": "",
+        "hasOptions": true,
+        "label": "",
+        "name": "deployment_size",
+        "options": [
+          {
+            "value": "small-production"
+          },
+          {
+            "value": "extra-large-production"
+          },
+          {
+            "value": "single-instance"
+          },
+          {
+            "value": "multi-instance"
+          }
+        ],
+        "pinned": false,
+        "required": true
+      },
+      {
+        "default": "helm",
+        "description": "",
+        "hasOptions": true,
+        "label": "",
+        "name": "orchestration_type",
+        "options": [
+          {
+            "value": "helm"
+          },
+          {
+            "value": "EVNFM"
+          }
+        ],
+        "pinned": false,
+        "required": true
+      },
+      {
+        "default": "other",
+        "description": "",
+        "hasOptions": true,
+        "label": "",
+        "name": "container_registry_type",
+        "options": [
+          {
+            "value": "other"
+          },
+          {
+            "value": "EVNFM"
+          }
+        ],
+        "pinned": false,
+        "required": true
+      },
+      {
+        "default": "ROLLBACK",
+        "description": "",
+        "hasOptions": true,
+        "label": "",
+        "name": "scope",
+        "options": [
+          {
+            "value": "ROLLBACK"
+          },
+          {
+            "value": "DEFAULT"
+          }
+        ],
+        "pinned": false,
+        "required": true
+      },
+      {
+        "default": "",
+        "description": "",
+        "hasOptions": false,
+        "label": "",
+        "name": "cenm_product_set_version",
+        "options": [
+          {
+            "value": ""
+          }
+        ],
+        "pinned": false,
+        "required": true
+      },
+      {
+        "default": "",
+        "description": "",
+        "hasOptions": false,
+        "label": "",
+        "name": "drop",
+        "options": [
+          {
+            "value": ""
+          }
+        ],
+        "pinned": false,
+        "required": true
+      },
+      {
+        "default": "MAPPED",
+        "description": "",
+        "hasOptions": false,
+        "label": "",
+        "name": "tor_utils_version",
+        "options": [
+          {
+            "value": "INSTALLED"
+          },
+          {
+            "value": "NOT_REQUIRED"
+          },
+          {
+            "value": "LATEST"
+          }
+        ],
+        "pinned": false,
+        "required": true
+      },
+      {
+        "default": "MAPPED",
+        "description": "",
+        "hasOptions": false,
+        "label": "",
+        "name": "nss_utils_version",
+        "options": [
+          {
+            "value": ""
+          }
+        ],
+        "pinned": false,
+        "required": true
+      },
+      {
+        "default": "CDL",
+        "description": "",
+        "hasOptions": false,
+        "label": "",
+        "name": "test_phase",
+        "options": [
+          {
+            "value": ""
+          }
+        ],
+        "pinned": false,
+        "required": true
+      },
+      {
+        "default": "MAPPED",
+        "description": "",
+        "hasOptions": false,
+        "label": "",
+        "name": "apt_version",
+        "options": [
+          {
+            "value": ""
+          }
+        ],
+        "pinned": false,
+        "required": true
+      },
+      {
+        "default": "",
+        "description": "",
+        "hasOptions": false,
+        "label": "",
+        "name": "features_to_exclude",
+        "options": [
+          {
+            "value": ""
+          }
+        ],
+        "pinned": false,
+        "required": false
+      },
+      {
+        "default": "True",
+        "description": "",
+        "hasOptions": true,
+        "label": "",
+        "name": "trigger_adu",
+        "options": [
+          {
+            "value": "True"
+          },
+          {
+            "value": "False"
+          }
+        ],
+        "pinned": false,
+        "required": true
+      },
+      {
+        "default": "RELEASE",
+        "description": "",
+        "hasOptions": false,
+        "label": "",
+        "name": "mt_utils_version",
+        "options": [
+          {
+            "value": ""
+          }
+        ],
+        "pinned": false,
+        "required": true
+      },
+      {
+        "default": "MAPPED",
+        "description": "",
+        "hasOptions": false,
+        "label": "",
+        "name": "adu_version",
+        "options": [
+          {
+            "value": ""
+          }
+        ],
+        "pinned": false,
+        "required": true
+      },
+      {
+        "default": "LATEST",
+        "description": "",
+        "hasOptions": false,
+        "label": "",
+        "name": "availability_watcher_version",
+        "options": [
+          {
+            "value": ""
+          }
+        ],
+        "pinned": false,
+        "required": true
+      },
+      {
+        "default": "AUTO",
+        "description": "",
+        "hasOptions": false,
+        "label": "",
+        "name": "taf_version",
+        "options": [
+          {
+            "value": ""
+          }
+        ],
+        "pinned": false,
+        "required": true
+      },
+      {
+        "default": "YES",
+        "description": "This parameter is to send confidence level to build log",
+        "hasOptions": true,
+        "label": "",
+        "name": "publish_to_buildlog",
+        "options": [
+          {
+            "value": "YES"
+          },
+          {
+            "value": "NO"
+          }
+        ],
+        "pinned": false,
+        "required": true
+      },
+      {
+        "default": "",
+        "description": "NOTE: If deployment_mechanism is csar and parameter value is empty,value is being fetched from the Config Map",
+        "hasOptions": false,
+        "label": "",
+        "name": "backup_name",
+        "options": [
+          {
+            "value": ""
+          }
+        ],
+        "pinned": false,
+        "required": false
+      },
+      {
+        "default": "ci_internal",
+        "description": "",
+        "hasOptions": true,
+        "label": "",
+        "name": "stage_area",
+        "options": [
+          {
+            "value": "ci_internal"
+          },
+          {
+            "value": "drop"
+          }
+        ],
+        "pinned": false,
+        "required": true
+      },
+      {
+        "default": "false",
+        "description": "",
+        "hasOptions": true,
+        "label": "",
+        "name": "is_network_type_STC",
+        "options": [
+          {
+            "value": "false"
+          },
+          {
+            "value": "true"
+          }
+        ],
+        "pinned": false,
+        "required": true
+      },
+      {
+        "default": "infra_apps",
+        "description": "This parameter is used to give the ability to the operator to specify whether he wants to run the pipeline with just infra or infra_apps",
+        "hasOptions": true,
+        "label": "",
+        "name": "adu_coverage_selector",
+        "options": [
+          {
+            "value": "infra"
+          },
+          {
+            "value": "infra_apps"
+          }
+        ],
+        "pinned": false,
+        "required": true
+      },
+      {
+        "default": "cbrs",
+        "description": "Provide namespace for upgrade (default will be cbrs)",
+        "hasOptions": false,
+        "label": "",
+        "name": "CBRS_NAMESPACE",
+        "options": [
+          {
+            "value": ""
+          }
+        ],
+        "pinned": false,
+        "required": false
+      },
+      {
+        "default": "drop",
+        "description": "Leave empty for latest version as drop value. CSAR version e.g.: 0.108.0-9, drop, release, build",
+        "hasOptions": false,
+        "label": "",
+        "name": "CBRS_CSAR_VERSION",
+        "options": [
+          {
+            "value": ""
+          }
+        ],
+        "pinned": false,
+        "required": false
+      },
+      {
+        "default": "False",
+        "description": "",
+        "hasOptions": true,
+        "label": "",
+        "name": "trigger_cbrs_ug",
+        "options": [
+          {
+            "value": "True"
+          },
+          {
+            "value": "False"
+          }
+        ],
+        "pinned": false,
+        "required": true
+      },
+      {
+        "default": "False",
+        "description": "",
+        "hasOptions": true,
+        "label": "",
+        "name": "trigger_pre_sat_tests",
+        "options": [
+          {
+            "value": "True"
+          },
+          {
+            "value": "False"
+          }
+        ],
+        "pinned": false,
+        "required": true
+      },
+      {
+        "default": "False",
+        "description": "",
+        "hasOptions": true,
+        "label": "",
+        "name": "trigger_post_sat_tests",
+        "options": [
+          {
+            "value": "True"
+          },
+          {
+            "value": "False"
+          }
+        ],
+        "pinned": false,
+        "required": true
+      },
+      {
+        "default": "true",
+        "description": "",
+        "hasOptions": true,
+        "label": "",
+        "name": "UPLOAD_UG_METRICS_TO_LOG_SERVER",
+        "options": [
+          {
+            "value": "false"
+          },
+          {
+            "value": "true"
+          }
+        ],
+        "pinned": false,
+        "required": true
+      }
+    ],
+    "schema": "1",
+    "spelEvaluator": "v4",
+    "stages": [
+      {
+        "application": "APPLICATION_NAME",
+        "completeOtherBranchesThenFail": false,
+        "continuePipeline": false,
+        "failPipeline": true,
+        "name": "CDL_cENM_UG_Flow",
+        "pipeline": "5f9af29e-f527-4b26-8e02-18fd39f3b0e0",
+        "pipelineParameters": {
+          "Artifact_type": "${parameters['Artifact_type']}",
+          "adu_coverage_selector": "${parameters['adu_coverage_selector']}",
+          "adu_version": "${parameters['adu_version']}",
+          "apt_version": "${parameters['apt_version']}",
+          "availability_watcher_version": "${parameters['availability_watcher_version']}",
+          "backup_name": "${parameters['backup_name']}",
+          "cenm_product_set_version": "${parameters['cenm_product_set_version']}",
+          "container_registry_type": "${parameters['container_registry_type']}",
+          "deployment_size": "${parameters['deployment_size']}",
+          "drop": "${parameters['drop']}",
+          "environment_name": "${parameters['environment_name']}",
+          "features_to_exclude": "${parameters['features_to_exclude']}",
+          "is_dit_versioning_applied": "${parameters['is_dit_versioning_applied']}",
+          "Trigger_Health_Check": "${parameters['Trigger_Health_Check']}",
+          "is_network_type_STC": "${parameters['is_network_type_STC']}",
+          "mt_utils_version": "${parameters['mt_utils_version']}",
+          "nss_utils_version": "${parameters['nss_utils_version']}",
+          "orchestration_type": "${parameters['orchestration_type']}",
+          "publish_to_buildlog": "${parameters['publish_to_buildlog']}",
+          "scope": "${parameters['scope']}",
+          "stage_area": "${parameters['stage_area']}",
+          "taf_version": "${parameters['taf_version']}",
+          "test_phase": "${parameters['test_phase']}",
+          "tor_utils_version": "${parameters['tor_utils_version']}",
+          "trigger_adu": "${parameters['trigger_adu']}",
+          "use_case": "${parameters['use_case']}",
+          "UPLOAD_UG_METRICS_TO_LOG_SERVER": "${parameters['UPLOAD_UG_METRICS_TO_LOG_SERVER']}"
+        },
+        "refId": "1",
+        "requisiteStageRefIds": [],
+        "type": "pipeline",
+        "waitForCompletion": true
+      },
+      {
+        "application": "APPLICATION_NAME",
+        "failPipeline": false,
+        "continuePipeline": true,
+        "name": "PRE_UG_SAT_Tests",
+        "pipeline": "eb8199df-b170-46a2-9872-d5780cf1e32f",
+        "pipelineParameters": {
+          "ENVIRONMENT_NAME": "${parameters['environment_name']}",
+          "NAMESPACE": "${parameters['CBRS_NAMESPACE']}"
+        },
+        "refId": "2",
+        "requisiteStageRefIds": [
+          "1"
+        ],
+        "stageEnabled": {
+          "expression": "trigger[\"parameters\"][\"trigger_pre_sat_tests\"] == \"True\"",
+          "type": "expression"
+        },
+        "type": "pipeline",
+        "waitForCompletion": true
+      },
+      {
+        "application": "APPLICATION_NAME",
+        "failPipeline": true,
+        "continuePipeline": false,
+        "name": "CBRS_UG_Flow",
+        "pipeline": "b16b93f9-d2f4-4daf-ae57-476904469221",
+        "pipelineParameters": {
+          "CSAR_VERSION": "${parameters['CBRS_CSAR_VERSION']}",
+          "ENVIRONMENT_NAME": "${parameters['environment_name']}",
+          "NAMESPACE": "${parameters['CBRS_NAMESPACE']}"
+        },
+        "refId": "3",
+        "requisiteStageRefIds": [
+          "2"
+        ],
+        "stageEnabled": {
+          "expression": "trigger[\"parameters\"][\"trigger_cbrs_ug\"] == \"True\"",
+          "type": "expression"
+        },
+        "type": "pipeline",
+        "waitForCompletion": true
+      },
+      {
+        "application": "APPLICATION_NAME",
+        "failPipeline": true,
+        "continuePipeline": false,
+        "name": "POST_UG_SAT_Tests",
+        "pipeline": "eb8199df-b170-46a2-9872-d5780cf1e32f",
+        "pipelineParameters": {
+          "ENVIRONMENT_NAME": "${parameters['environment_name']}",
+          "NAMESPACE": "${parameters['CBRS_NAMESPACE']}"
+        },
+        "refId": "4",
+        "requisiteStageRefIds": [
+          "3"
+        ],
+        "stageEnabled": {
+          "expression": "trigger[\"parameters\"][\"trigger_post_sat_tests\"] == \"True\"",
+          "type": "expression"
+        },
+        "type": "pipeline",
+        "waitForCompletion": true
+      }
+    ],
+    "triggers": []
+  }

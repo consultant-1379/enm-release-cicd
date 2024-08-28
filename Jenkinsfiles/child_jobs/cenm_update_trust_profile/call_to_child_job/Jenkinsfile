@@ -1,0 +1,23 @@
+def callChildJob(checkJobBuildable) {
+    stage('cENM Trust Profile') {
+        if (checkJobBuildable("cENM_Update_Trust_Profile")) {
+            def Cenm_Update_Trust_Profile = build(
+                job: "cENM_Update_Trust_Profile",
+                propagate: true,
+                wait: true,
+                parameters: [
+                    string(name: 'clusterId', value: env.cluster_id),
+                    string(name: 'drop', value: env.drop),
+                    string(name: 'simdep_release', value: env.simdep_release),
+                    string(name: 'Mt_utils_version', value: env.mt_utils_version),
+                    string(name: 'nodesCleanUp', value: env.nodesCleanUp),
+                    string(name: 'deployment_type', value: 'Cloud'),
+                ]
+            )
+        } else {
+            echo "cENM_Update_Trust_Profile Job is disabled. So skipping"
+        }
+    }
+}
+
+return this

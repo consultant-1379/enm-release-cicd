@@ -1,0 +1,68 @@
+def returnParametersForDsl() {
+    return [TE_DOCKER_SLAVES: env.TE_DOCKER_SLAVES, OPENSTACK_SLAVES: env.OPENSTACK_SLAVES, TEAM_EMAIL: env.TEAM_EMAIL, PERMISSION_GROUPS: env.PERMISSION_GROUPS]
+}
+
+def returnListOfCenmMtRfa250Jobs() {
+    def listOfCenmMtRfa250Jobs = []
+
+    // === cENM MT RFA250 Standalone Job ===
+    listOfCenmMtRfa250Jobs = listOfCenmMtRfa250Jobs.plus('DSL/spinnakerpipeline/cenm/rfa250/SpinnakerCenmMtRfa250Updater.groovy')
+
+    // === cENM MT RFA250 Updater ===
+    listOfCenmMtRfa250Jobs = listOfCenmMtRfa250Jobs.plus('pipeline_generation/spinnaker/rfa250/DSL/SpinnakerCenmMtRfa250PipelineUpdater.groovy')
+
+    return listOfCenmMtRfa250Jobs
+}
+
+pipeline {
+    agent {
+        node {
+            label OPENSTACK_SLAVES
+        }
+    }
+
+    environment {
+        DSL_CLASSPATH = 'DSL'
+    }
+
+    stages {
+        stage ('Validate required parameters set') {
+            when {
+                anyOf {
+                    expression {
+                        env.TE_DOCKER_SLAVES == null
+                    }
+                    expression {
+                        env.OPENSTACK_SLAVES == null
+                    }
+                    expression {
+                        env.TEAM_EMAIL == null
+                    }
+                }
+            }
+            steps {
+                error('Some required parameter(s) not set. Please supply a value for all required parameters')
+            }
+        }
+        stage ('Default PERMISSION_GROUPS if null') {
+            when {
+                expression {
+                    env.PERMISSION_GROUPS == null
+                }
+            }
+            steps {
+                script {
+                    env.PERMISSION_GROUPS = 'authenticated'
+                }
+            }
+        }
+
+        stage('Cenm Rollback Pipeline Jobs') {
+            steps {
+                jobDsl targets: returnListOfCenmMtRfa250Jobs().join('\n'),
+                    additionalParameters: returnParametersForDsl(),
+                    additionalClasspath: env.DSL_CLASSPATH
+            }
+        }
+    }
+}

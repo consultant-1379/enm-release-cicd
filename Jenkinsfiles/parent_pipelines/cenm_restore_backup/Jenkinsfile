@@ -1,0 +1,158 @@
+import jenkins.model.*
+def SLAVE_FINAL = null
+
+node(SLAVE) {
+  stage('Determine Slave'){
+     if (env.is_network_type_STC == "true") {
+        SLAVE_FINAL = STC_SLAVE
+     } else {
+        SLAVE_FINAL = SLAVE
+     }
+   }
+}
+
+pipeline {
+
+    agent {
+        node {
+            label SLAVE_FINAL
+        }
+    }
+
+    options {
+        timestamps()
+    }
+
+    stages {
+        stage('Set build name and description') {
+            steps {
+                script {
+                    currentBuild.displayName = "Backup on ${cluster_id}"
+                    currentBuild.description = "<b>Product Set Version = ${cenm_product_set_version}<br>MT Utils Version = ${mt_utils_version}</b>"
+                }
+            }
+        }
+
+        stage('Load common methods') {
+            steps {
+                script {
+                    commonMethods = load("${env.WORKSPACE}/Jenkinsfiles/common_methods/CommonMethods.groovy")
+                }
+            }
+        }
+
+        stage('Writing Parameters to parameters.properties') {
+            steps {
+                script {
+                    commonMethods.exportEnvVariablesToFile("parameters.properties")
+                }
+            }
+        }
+
+        stage('Downloading MT Utils Pipeline Scripts') {
+            steps {
+                script {
+                    commonMethods.downloadMtUtils()
+                }
+            }
+        }
+
+        stage('Execute EMT Pipeline script') {
+            steps{
+              sh "MTELoopScripts/pipeline_scripts/emt/jenkins/initial_build_setup.sh ${WORKSPACE}/parameters.properties initial || exit 1"
+            }
+        }
+
+        stage('Running Setup Script') {
+            steps{
+               sh "sh MTELoopScripts/pipeline_scripts/cenm_backup_setup.sh ${WORKSPACE}/parameters.properties DEFAULT || exit 1"
+            }
+        }
+
+        stage('Inject environment variables') {
+            steps {
+                script {
+                    commonMethods.loadProperties("${WORKSPACE}/build.properties")
+                }
+            }
+        }
+
+        stage('cENM STC Restore Backup Flow') {
+            when {
+                expression {
+                    env.is_network_type_STC == "true"
+                }
+            }
+            steps {
+                script {
+                    if (checkJobBuildable("cENM_Backup")) {
+                        def Cenm_Backup = build(
+                            job: "cENM_Backup",
+                            propagate: true,
+                            wait: true,
+                            parameters: [
+                                string(name: 'environment_name', value: env.cluster_id),
+                                string(name: 'backup_name', value: env.backup_name),
+                                string(name: 'backup_scope', value: 'DEFAULT'),
+                                string(name: 'mt_utils_version', value: env.mt_utils_version),
+                                string(name: 'product_set_version', value: env.cenm_product_set_version),
+                                string(name: 'stage_area', value: env.stage_area),
+                                string(name: 'deployment_mechanism', value: env.deployment_mechanism),
+                                string(name: 'BRO_DEFAULT_BACKUP_TYPE', value: env.BRO_DEFAULT_BACKUP_TYPE),
+                                string(name: 'drop', value: env.drop),
+                                string(name: 'slave', value: SLAVE_FINAL),
+                            ]
+                        )
+                    } else {
+                        echo "cENM_Backup Job is disabled. So skipping"
+                    }
+                }
+            }
+        }
+
+        stage('cENM Restore Backup Flow') {
+            when {
+                expression {
+                    env.is_network_type_STC == "false"
+                }
+            }
+            steps {
+                script {
+                    if (checkJobBuildable("cENM_Backup")) {
+                        def Cenm_Backup = build(
+                            job: "cENM_Backup",
+                            propagate: true,
+                            wait: true,
+                            parameters: [
+                                string(name: 'environment_name', value: env.cluster_id),
+                                string(name: 'backup_name', value: env.backup_name),
+                                string(name: 'backup_scope', value: 'DEFAULT'),
+                                string(name: 'mt_utils_version', value: env.mt_utils_version),
+                                string(name: 'product_set_version', value: env.cenm_product_set_version),
+                                string(name: 'stage_area', value: env.stage_area),
+                                string(name: 'deployment_mechanism', value: env.deployment_mechanism),
+                                string(name: 'BRO_DEFAULT_BACKUP_TYPE', value: env.BRO_DEFAULT_BACKUP_TYPE),
+                                string(name: 'drop', value: env.drop)
+                            ]
+                        )
+                    } else {
+                        echo "cENM_Backup Job is disabled. So skipping"
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            script {
+                sh "MTELoopScripts/pipeline_scripts/emt/jenkins/final_build_setup.sh ${WORKSPACE}/parameters.properties post_build || exit 1"
+            }
+        }
+    }
+}
+
+def checkJobBuildable(jobName) {
+    def isBuildable = Jenkins.instance.getItem(jobName).isBuildable();
+    return isBuildable
+}

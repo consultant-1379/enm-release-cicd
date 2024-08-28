@@ -1,0 +1,23 @@
+def callChildJob(checkJobBuildable) {
+    stage('cENM Add Licenses') {
+        if (checkJobBuildable("cENM_Add_Licenses")) {
+            def Cenm_Add_Licenses = build(
+                job: "cENM_Add_Licenses",
+                propagate: true,
+                wait: true,
+                parameters: [
+                    string(name: 'test_phase', value: env.test_phase),
+                    string(name: 'cluster_id', value: env.cluster_id),
+                    string(name: 'mt_utils_version', value: env.mt_utils_version),
+                    string(name: 'drop', value: env.drop),
+                    string(name: 'product_set_version', value: env.product_set_version),
+                    string(name: 'deployment_type', value: env.deployment_type),
+                ]
+            )
+        } else {
+            echo "cENM_Add_Licenses Job is disabled. So skipping"
+        }
+    }
+}
+
+return this

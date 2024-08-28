@@ -1,0 +1,61 @@
+def commonMethods
+
+pipeline {
+    agent {
+        node {
+            label SLAVE
+        }
+    }
+    options {
+        timestamps()
+    }
+    stages {
+        stage('Load common methods') {
+            steps {
+                script {
+                    commonMethods = load("${env.WORKSPACE}/Jenkinsfiles/common_methods/CommonMethods.groovy")
+                }
+            }
+        }
+
+        stage('Writing Parameters to parameters.properties') {
+            steps {
+                script {
+                    commonMethods.exportEnvVariablesToFile("parameters.properties")
+                }
+            }
+        }
+
+        stage('Downloading MT Utils Pipeline Scripts') {
+            steps {
+                script {
+                    commonMethods.downloadMtUtils()
+                }
+            }
+        }
+
+        stage('Running adu status setup script') {
+            steps {
+                script {
+                    if (env.trigger_adu == 'True') {
+                        sh "MTELoopScripts/pipeline_scripts/ccd_adu_status_check.sh ${WORKSPACE}/parameters.properties || exit 1"
+                    }
+                }
+            }
+        }
+
+        stage('Execute CCD Upgrade Spinnaker Trigger Script') {
+            steps{
+                sh "MTELoopScripts/pipeline_scripts/cenm_ccd_upgrade_spinnaker_trigger.sh ${WORKSPACE}/parameters.properties || exit 1"
+            }
+        }
+
+        stage('Set build name and description') {
+            steps {
+                script {
+                    currentBuild.description = "<b>CCD Upgrade trigger : ${pipeline_to_run} on ${deployment_id}</b>"
+                }
+            }
+        }
+    }
+}

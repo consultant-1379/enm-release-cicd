@@ -1,0 +1,157 @@
+def commonMethods
+
+pipeline {
+    agent {
+        node {
+            label SLAVE
+        }
+    }
+    options {
+        timestamps()
+    }
+    stages {
+        stage('Load common methods') {
+            steps {
+                script {
+                    commonMethods = load("${env.WORKSPACE}/Jenkinsfiles/common_methods/CommonMethods.groovy")
+                }
+            }
+        }
+
+        stage('Writing Parameters to parameters.properties') {
+            steps {
+                script {
+                    commonMethods.exportEnvVariablesToFile("parameters.properties")
+                }
+            }
+        }
+
+        stage('Set build name') {
+            steps {
+                script {
+                    currentBuild.displayName = "Workload_Assertions on ${cluster_id}"
+                }
+            }
+        }
+
+        stage('Downloading MT Utils Pipeline Scripts') {
+            steps {
+                script {
+                    commonMethods.downloadMtUtils()
+                }
+            }
+        }
+
+        stage('Downloading APT Version Pipeline Scripts') {
+            steps {
+                sh '''
+                    #!/bin/sh
+                    echo "Retrieving Scripts from Nexus"
+                    mkdir ${WORKSPACE}/aptconfig
+                    apt_utils_version_tar_file_name="apt_${apt_utils_version}.tar.gz"
+                    curl -s --noproxy \\* -L "https://arm1s11-eiffel004.eiffel.gic.ericsson.se:8443/nexus/service/local/artifact/maven/redirect?r=releases&g=com.ericsson.oss.ci.rtd&a=apt-config&p=tar.gz&v=${apt_utils_version}" -o ${WORKSPACE}/aptconfig/${apt_utils_version_tar_file_name}
+                    tar -zxf ${WORKSPACE}/aptconfig/${apt_utils_version_tar_file_name} --directory ${WORKSPACE}/aptconfig/
+                '''
+            }
+        }
+
+        stage('Running APT tolerance setup script for robust check') {
+            steps {
+                script {
+                    if (env.is_environment_running_robustness_load == 'true') {
+                        sh '''
+                            sh MTELoopScripts/pipeline_scripts/apt_tolerance_setup.sh "${WORKSPACE}/parameters.properties" || exit 1
+                        '''
+                    }
+                }
+            }
+        }
+
+        stage('Running APT setup script') {
+            steps {
+                sh '''
+                    sh MTELoopScripts/pipeline_scripts/apt_repo_copy_to_server_setup.sh "${WORKSPACE}/parameters.properties" || exit 1
+                '''
+            }
+        }
+
+        stage('Execute workload assertions') {
+            steps {
+                timeout(time: 3, unit: 'HOURS') {
+                    script {
+                        sh '''
+                            echo pre_deployment=false >> ${WORKSPACE}/parameters.properties
+                            sh MTELoopScripts/pipeline_scripts/run_workload_assertions_setup.sh ${WORKSPACE}/parameters.properties || exit_code=1
+                            echo exit_code=${exit_code} >> ${WORKSPACE}/build.properties
+                        '''
+                    }
+                }
+            }
+        }
+
+        stage('Inject environment variables') {
+            steps {
+                script {
+                    commonMethods.loadProperties("${WORKSPACE}/build.properties")
+                }
+            }
+        }
+
+        stage('Set build description') {
+            steps {
+                script {
+                    currentBuild.description = """<b>Test Phase = ${test_phase}<br>
+                        Start Time = ${start_time}<br>
+                        <b>Product Set Version = ${product_set_version}<br>
+                        Number of Nodes In Workload Pool = ${number_of_nodes_in_wl_pool}</b>
+                    """
+                }
+            }
+        }
+
+        stage('Verify workload assertions status') {
+            steps {
+                script {
+                    sh '''
+                        if [[ ${exit_code} -eq 1 ]]; then
+                            exit 1
+                        fi
+                    '''
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            publishHTML target: [
+                allowMissing: true,
+                alwaysLinkToLastBuild: true,
+                includes: '**/*',
+                keepAll: true,
+                reportDir: 'report',
+                reportFiles: 'index.html',
+                reportName: 'Assertions Report'
+            ]
+
+            script {
+                if (env.email_recipients) {
+                    emailext (
+                        subject: '${DEFAULT_SUBJECT}  - Cluster ID = ${cluster_id}',
+                        body: '''
+                            <h3>Assertion report for ${cluster_id} </h3>
+                            <b>Start time of the Assertion Period:</b> ${start_time}<br>
+                            <b>Result:</b> $DEFAULT_SUBJECT<br>
+                            <b>Product Set:</b> ${product_set_version}<br>
+                            <b>ISO Version:</b> ${enm_iso_version}<br>
+                            <b>You can view the assertions report: <a href="https://apt.seli.wh.rnd.internal.ericsson.com/reports/?deployment_id=${cluster_id}">HERE</a>
+                            <b>$DEFAULT_CONTENT<br>
+                        ''',
+                        to: '${email_recipients}',
+                        mimeType: 'text/html'
+                    )
+                }
+            }
+        }
+    }
+}

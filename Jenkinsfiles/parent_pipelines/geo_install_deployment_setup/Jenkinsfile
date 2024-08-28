@@ -1,0 +1,386 @@
+import jenkins.model.*
+
+pipeline {
+
+    agent {
+        node {
+            label SLAVE
+        }
+    }
+
+    options {
+        timestamps()
+    }
+
+    stages {
+        stage('Set build name and description') {
+            steps {
+                script {
+                    currentBuild.displayName = "Deployment Setup on ${cluster_id}"
+                    currentBuild.description = "<b>Product Set Version = ${product_set_version}<br>MT Utils Version = ${mt_utils_version}</b>"
+                }
+            }
+        }
+
+        stage('Physical Copy Utils Repo To Environment') {
+            steps {
+                script {
+                    if (checkJobBuildable("Physical_Copy_Utils_Repo_To_Environment")) {
+                        def Physical_Copy_Utils_Repo_To_Environment = build(
+                            job: "Physical_Copy_Utils_Repo_To_Environment",
+                            propagate: true,
+                            wait: true,
+                            parameters: [
+                                string(name: "cluster_id", value:env.cluster_id),
+                                string(name: "mt_utils_version", value:env.mt_utils_version)
+                            ]
+                        )
+                    } else {
+                        echo "Physical_Copy_Utils_Repo_To_Environment Job is disabled. So skipping"
+                    }
+                }
+            }
+        }
+
+        stage('Physical Copy Public Keys To LMS') {
+            steps {
+                script {
+                    if (checkJobBuildable("Physical_Copy_Public_Keys_To_LMS")) {
+                        def Physical_Copy_Public_Keys_To_LMS = build(
+                            job: "Physical_Copy_Public_Keys_To_LMS",
+                            propagate: true,
+                            wait: true,
+                            parameters: [
+                                string(name: "list_of_cluster_ids", value:env.cluster_id),
+                                string(name: "mt_utils_version", value:env.mt_utils_version)
+                            ]
+                        )
+                    } else {
+                        echo "Physical_Copy_Public_Keys_To_LMS Job is disabled. So skipping"
+                    }
+                }
+            }
+        }
+
+        stage('Physical Secure LMS and WLVM') {
+            parallel {
+                stage('Physical Secure LMS') {
+                    steps {
+                        script {
+                            if (checkJobBuildable("Physical_Secure_LMS")) {
+                                def Physical_Secure_LMS = build(
+                                    job: "Physical_Secure_LMS",
+                                    propagate: true,
+                                    wait: true,
+                                    parameters: [
+                                        string(name: "list_of_cluster_ids", value:env.cluster_id),
+                                        string(name: "mt_utils_version", value:env.mt_utils_version)
+                                    ]
+                                )
+                            } else {
+                                echo "Physical_Secure_LMS Job is disabled. So skipping"
+                            }
+                        }
+                    }
+                }
+
+                stage('Physical Secure WLVM') {
+                    steps {
+                        script {
+                            if (checkJobBuildable("Physical_Secure_WLVM")) {
+                                def Physical_Secure_WLVM = build(
+                                    job: "Physical_Secure_WLVM",
+                                    propagate: true,
+                                    wait: true,
+                                    parameters: [
+                                        string(name: "list_of_cluster_ids", value:env.cluster_id),
+                                        string(name: "mt_utils_version", value:env.mt_utils_version)
+                                    ]
+                                )
+                            } else {
+                                echo "Physical_Secure_LMS Job is disabled. So skipping"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Physical Netsim Setup') {
+            steps {
+                script {
+                    if (checkJobBuildable("Physical_Netsim_Setup")) {
+                        def Physical_Netsim_Setup = build(
+                            job: "Physical_Netsim_Setup",
+                            propagate: true,
+                            wait: true,
+                            parameters: [
+                                string(name: "cluster_id", value:env.cluster_id),
+                                string(name: "mt_utils_version", value:env.mt_utils_version)
+                            ]
+                        )
+                    } else {
+                        echo "Physical_Netsim_Setup Job is disabled. So skipping"
+                    }
+                }
+            }
+        }
+
+        stage('Physical Update Netsim Info') {
+            steps {
+                script {
+                    if (checkJobBuildable("Physical_Update_Netsim_Info")) {
+                        def Physical_Update_Netsim_Info = build(
+                            job: "Physical_Update_Netsim_Info",
+                            propagate: false,
+                            wait: false,
+                            parameters: [
+                                string(name: "cluster_id", value:env.cluster_id),
+                                string(name: "mt_utils_version", value:env.mt_utils_version)
+                            ]
+                        )
+                    } else {
+                        echo "Physical_Update_Netsim_Info Job is disabled. So skipping"
+                    }
+                }
+            }
+        }
+
+        stage('Prepare environment variables list') {
+            steps {
+                script {
+                    environment_variables_list = [
+                        string(name: "cluster_id", value:env.cluster_id),
+                        string(name: "mt_utils_version", value:env.mt_utils_version),
+                        string(name: "test_phase", value:env.test_phase),
+                        string(name: "deployment_type", value:"physical"),
+                        string(name: "drop", value:env.drop),
+                        string(name: "product_set_version", value:env.product_set_version),
+                        string(name: "apt_version", value:env.apt_version),
+                        string(name: "deploy_phase", value:"initial_install_Full"),
+                        string(name: "tor_utils_version", value:"NOT_REQUIRED"),
+                        string(name: "nss_utils_version", value:env.nss_utils_version)
+                    ]
+                }
+            }
+        }
+
+        stage('Trigger Jobs In Parallel') {
+            parallel {
+                stage('Physical Setup Workload VM') {
+                    steps {
+                        script {
+                            if (checkJobBuildable("Physical_Setup_Workload_VM")) {
+                                def Physical_Setup_Workload_VM = build(
+                                    job: "Physical_Setup_Workload_VM",
+                                    propagate: true,
+                                    wait: true,
+                                    parameters: environment_variables_list
+                                )
+                            } else {
+                                echo "Physical_Setup_Workload_VM Job is disabled. So skipping"
+                            }
+                        }
+                    }
+                }
+
+                stage('Physical DDC Setup') {
+                    steps {
+                        script {
+                            if (checkJobBuildable("Physical_DDC_Setup")) {
+                                def Physical_DDC_Setup = build(
+                                    job: "Physical_DDC_Setup",
+                                    propagate: true,
+                                    wait: true,
+                                    parameters: environment_variables_list
+                                )
+                            } else {
+                                echo "Physical_DDC_Setup Job is disabled. So skipping"
+                            }
+                        }
+                    }
+                }
+
+                stage('Physical Apply PIB Configuration') {
+                    steps {
+                        script {
+                            if (checkJobBuildable("Physical_Apply_PIB_Configuration")) {
+                                def Physical_Apply_PIB_Configuration = build(
+                                    job: "Physical_Apply_PIB_Configuration",
+                                    propagate: true,
+                                    wait: true,
+                                    parameters: environment_variables_list
+                                )
+                            } else {
+                                echo "Physical_Apply_PIB_Configuration Job is disabled. So skipping"
+                            }
+                        }
+                    }
+                }
+
+                stage('Physical Add Licenses') {
+                    steps {
+                        script {
+                            if (checkJobBuildable("Physical_Add_Licenses")) {
+                                def Physical_Add_Licenses = build(
+                                    job: "Physical_Add_Licenses",
+                                    propagate: true,
+                                    wait: true,
+                                    parameters: environment_variables_list
+                                )
+                            } else {
+                                echo "Physical_Add_Licenses Job is disabled. So skipping"
+                            }
+                        }
+                    }
+                }
+
+                stage('MTV Physical Update Trust Profile') {
+                    steps {
+                        script {
+                            if (checkJobBuildable("MTV_Physical_Update_Trust_Profile")) {
+                                def MTV_Physical_Update_Trust_Profile = build(
+                                    job: "MTV_Physical_Update_Trust_Profile",
+                                    propagate: true,
+                                    wait: true,
+                                    parameters: [
+                                        string(name: "clusterId", value:env.cluster_id),
+                                        string(name: "drop", value:env.drop),
+                                        string(name: "simdep_release", value:env.simdep_release),
+                                        string(name: "deployment_type", value:"Physical"),
+                                        string(name: "mt_utils_version", value:env.mt_utils_version),
+                                        string(name: "nodesCleanUp", value:env.nodesCleanUp)
+                                    ]
+                                )
+                            } else {
+                                echo "MTV_Physical_Update_Trust_Profile Job is disabled. So skipping"
+                            }
+                        }
+                    }
+                }
+
+                stage('Physical Deploy APT Tool') {
+                    steps {
+                        script {
+                            if (checkJobBuildable("Physical_Deploy_APT_Tool")) {
+                                def Physical_Deploy_APT_Tool = build(
+                                    job: "Physical_Deploy_APT_Tool",
+                                    propagate: true,
+                                    wait: true,
+                                    parameters: environment_variables_list
+                                )
+                            } else {
+                                echo "Physical_Deploy_APT_Tool Job is disabled. So skipping"
+                            }
+                        }
+                    }
+                }
+
+                stage('Physical Update OMBS Software') {
+                    steps {
+                        script {
+                            if (checkJobBuildable("Physical_Update_OMBS_Software")) {
+                                def Physical_Update_OMBS_Software = build(
+                                    job: "Physical_Update_OMBS_Software",
+                                    propagate: true,
+                                    wait: true,
+                                    parameters: environment_variables_list
+                                )
+                            } else {
+                                echo "Physical_Update_OMBS_Software Job is disabled. So skipping"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Deploy NSS Testware and Copy RVB TestScripts') {
+            parallel {
+                stage('Physical Deploy NSS Testware Utilities') {
+                    steps {
+                        script {
+                            if (checkJobBuildable("Physical_Deploy_NSS_Testware_Utilities")) {
+                                def Physical_Deploy_NSS_Testware_Utilities = build(
+                                    job: "Physical_Deploy_NSS_Testware_Utilities",
+                                    propagate: true,
+                                    wait: true,
+                                    parameters: environment_variables_list
+                                )
+                            } else {
+                                echo "Physical_Deploy_NSS_Testware_Utilities Job is disabled. So skipping"
+                            }
+                        }
+                    }
+                }
+
+                stage('Physical RVB TestScripts Repo') {
+                    steps {
+                        script {
+                            if (checkJobBuildable("Physical_RVB_TestScripts_Repo")) {
+                                def Physical_RVB_TestScripts_Repo = build(
+                                    job: "Physical_RVB_TestScripts_Repo",
+                                    propagate: true,
+                                    wait: true,
+                                    parameters: [
+                                        string(name: "clusterId", value:env.cluster_id),
+                                        string(name: "WorkloadVM", value:"YES")
+                                    ]
+                                )
+                            } else {
+                                echo "Physical_RVB_TestScripts_Repo Job is disabled. So skipping"
+                            }
+                        }
+                    }
+                }
+
+                stage('Run lcs tool setup on MS') {
+                    steps {
+                        script {
+                            if (checkJobBuildable("Physical_Lcs_Tool_Setup")) {
+                                def Physical_Lcs_Tool_Setup = build(
+                                    job: "Physical_Lcs_Tool_Setup",
+                                    propagate: true,
+                                    wait: true,
+                                    parameters: [
+                                        string(name: "cluster_id", value:env.cluster_id),
+                                        string(name: "mt_utils_version", value:env.mt_utils_version)
+                                    ]
+                                )
+                            } else {
+                                echo "Physical_Lcs_Tool_Setup Job is disabled. So skipping"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Run Geo Secondary Site Setup') {
+            steps {
+                script {
+                    if (checkJobBuildable("GEO_Physical_Secondary_Site_Setup")) {
+                        def GEO_Physical_Secondary_Site_Setup = build(
+                            job: "GEO_Physical_Secondary_Site_Setup",
+                            propagate: false,
+                            wait: false,
+                            parameters: [
+                                string(name: "cluster_id", value:env.cluster_id),
+                                string(name: "mt_utils_version", value:env.mt_utils_version),
+                                string(name: "non_critical_data_list", value:env.non_critical_data_list)
+                            ]
+                        )
+                    } else {
+                        echo "GEO_Physical_Secondary_Site_Setup Job is disabled. So skipping"
+                    }
+                }
+            }
+        }
+    }
+}
+
+def checkJobBuildable(jobName) {
+    def isBuildable = Jenkins.instance.getItem(jobName).isBuildable();
+    return isBuildable
+}
+

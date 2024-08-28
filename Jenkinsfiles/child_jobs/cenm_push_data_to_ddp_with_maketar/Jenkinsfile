@@ -1,0 +1,64 @@
+def commonMethods
+def SLAVE_FINAL = null
+
+node(SLAVE) {
+  stage('Determine Slave'){
+     if (env.is_network_type_STC == "true") {
+        SLAVE_FINAL = STC_SLAVE
+     } else {
+        SLAVE_FINAL = SLAVE
+     }
+   }
+}
+
+pipeline {
+    agent {
+        node {
+            label SLAVE_FINAL
+        }
+    }
+    options {
+        timeout(45)
+        timestamps()
+    }
+    stages {
+        stage('Load common methods') {
+            steps {
+                script {
+                    commonMethods = load("${env.WORKSPACE}/Jenkinsfiles/common_methods/CommonMethods.groovy")
+                }
+            }
+        }
+
+        stage('Writing Parameters to parameters.properties') {
+            steps {
+                script {
+                    commonMethods.exportEnvVariablesToFile("parameters.properties")
+                }
+            }
+        }
+
+        stage('Set build name and description') {
+            steps {
+                script {
+                    currentBuild.displayName = "Pushing data to DDP for ${cluster_id}"
+                    currentBuild.description = "<b>Test Phase = ${test_phase}<br>MT Utils Version = ${mt_utils_version}</b>"
+                }
+            }
+        }
+
+        stage('Downloading MT Utils Pipeline Scripts') {
+            steps {
+                script {
+                    commonMethods.downloadMtUtils()
+                }
+            }
+        }
+
+        stage('Running Setup Script') {
+            steps{
+                sh "sh MTELoopScripts/pipeline_scripts/push_data_to_ddp_using_make_tar.sh ${WORKSPACE}/parameters.properties || exit 1"
+            }
+        }
+    }
+}

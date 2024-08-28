@@ -1,0 +1,282 @@
+{
+    "application": "APPLICATION_NAME",
+    "disabled": false,
+    "keepWaitingPipelines": true,
+    "name": "PIPELINE_NAME",
+    "limitConcurrent": false,
+    "notifications": [
+      {
+        "address": "BumbleBee.ENM@tcs.com",
+        "cc": "",
+        "level": "pipeline",
+        "type": "email",
+        "when": [
+          "pipeline.failed"
+        ]
+      }
+    ],
+    "parameterConfig": [
+      {
+        "default": "",
+        "description": "This Parameter Value should be from DIT. Example: c11a003",
+        "hasOptions": false,
+        "label": "deployment_id",
+        "name": "deployment_id",
+        "options": [
+          {
+            "value": ""
+          }
+        ],
+        "pinned": false,
+        "required": true
+      },
+      {
+        "default": "master",
+        "description": "Enter branch name",
+        "hasOptions": false,
+        "label": "branch",
+        "name": "branch",
+        "options": [
+          {
+            "value": "master"
+          }
+        ],
+        "pinned": false,
+        "required": true
+      }
+    ],
+    "spelEvaluator": "v4",
+    "stages": [
+      {
+        "continuePipeline": false,
+        "failPipeline": true,
+        "job": "capo_upgrade_healthcheck",
+        "master": "FEM_CONTROLLER",
+        "name": "healthcheck",
+        "parameters": {
+          "branch": "${parameters['branch']}",
+          "deployment_id": "${parameters['deployment_id']}"
+        },
+        "refId": "1",
+        "requisiteStageRefIds": [],
+        "type": "jenkins"
+      },
+      {
+        "continuePipeline": false,
+        "failPipeline": true,
+        "job": "capo_upgrade_version_dtt_check",
+        "master": "FEM_CONTROLLER",
+        "name": "verify_dtt_upgrade_params",
+        "parameters": {
+          "branch": "${parameters['branch']}",
+          "deployment_id": "${parameters['deployment_id']}"
+        },
+        "refId": "2",
+        "requisiteStageRefIds": [
+          "1"
+        ],
+        "type": "jenkins"
+      },
+      {
+        "continuePipeline": false,
+        "failPipeline": true,
+        "job": "capo_upgrade_prepare_upgrade_image",
+        "master": "FEM_CONTROLLER",
+        "name": "prepare_upgrade_image",
+        "parameters": {
+          "branch": "${parameters['branch']}",
+          "deployment_id": "${parameters['deployment_id']}"
+        },
+        "refId": "3",
+        "requisiteStageRefIds": [
+          "2"
+        ],
+        "type": "jenkins"
+      },
+      {
+        "continuePipeline": false,
+        "failPipeline": true,
+        "job": "capo_upgrade_upgrade_version_flavor",
+        "master": "FEM_CONTROLLER",
+        "name": "upgrade_version_flavor",
+        "parameters": {
+          "branch": "${parameters['branch']}",
+          "deployment_id": "${parameters['deployment_id']}"
+        },
+        "refId": "4",
+        "requisiteStageRefIds": [
+          "3"
+        ],
+        "type": "jenkins"
+      },
+      {
+        "continuePipeline": false,
+        "failPipeline": true,
+        "job": "capo_upgrade_pre-requisites_check",
+        "master": "FEM_CONTROLLER",
+        "name": "pre-req_check",
+        "parameters": {
+          "branch": "${parameters['branch']}",
+          "deployment_id": "${parameters['deployment_id']}"
+        },
+        "refId": "5",
+        "requisiteStageRefIds": [
+          "4"
+        ],
+        "type": "jenkins"
+      },
+      {
+        "continuePipeline": false,
+        "failPipeline": true,
+        "job": "capo_upgrade_generate_upgrade_config",
+        "master": "FEM_CONTROLLER",
+        "name": "generate_upgrade_config",
+        "parameters": {
+          "branch": "${parameters['branch']}",
+          "deployment_id": "${parameters['deployment_id']}"
+        },
+        "refId": "6",
+        "requisiteStageRefIds": [
+          "5"
+        ],
+        "type": "jenkins"
+      },
+      {
+        "continuePipeline": false,
+        "failPipeline": true,
+        "job": "capo_upgrade_undeploy_monitoring",
+        "master": "FEM_CONTROLLER",
+        "name": "undeploy_monitoring",
+        "parameters": {
+          "branch": "${parameters['branch']}",
+          "deployment_id": "${parameters['deployment_id']}"
+        },
+        "refId": "7",
+        "requisiteStageRefIds": [
+          "6"
+        ],
+        "type": "jenkins"
+      },
+      {
+        "continuePipeline": false,
+        "failPipeline": true,
+        "job": "capo_upgrade_joinoqsqueue",
+        "master": "FEM_CONTROLLER",
+        "name": "join_queue",
+        "parameters": {
+          "branch": "${parameters['branch']}",
+          "deployment_id": "${parameters['deployment_id']}"
+        },
+        "refId": "8",
+        "requisiteStageRefIds": [
+          "7"
+        ],
+        "type": "jenkins"
+      },
+      {
+        "continuePipeline": false,
+        "failPipeline": true,
+        "job": "capo_upgrade_upgrade",
+        "master": "FEM_CONTROLLER",
+        "name": "capo_upgrade",
+        "parameters": {
+          "branch": "${parameters['branch']}",
+          "deployment_id": "${parameters['deployment_id']}"
+        },
+        "refId": "9",
+        "requisiteStageRefIds": [
+          "8"
+        ],
+        "stageTimeoutMs": 43200000,
+        "type": "jenkins"
+      },
+      {
+        "continuePipeline": false,
+        "failPipeline": true,
+        "job": "capo_upgrade_leaveoqsqueue",
+        "master": "FEM_CONTROLLER",
+        "name": "leave_queue",
+        "parameters": {
+          "branch": "${parameters['branch']}",
+          "deployment_id": "${parameters['deployment_id']}"
+        },
+        "refId": "10",
+        "requisiteStageRefIds": [
+          "9"
+        ],
+        "stageTimeoutMs": 16200000,
+        "type": "jenkins"
+      },
+      {
+        "continuePipeline": false,
+        "failPipeline": true,
+        "job": "capo_upgrade_upload_to_minio",
+        "master": "FEM_CONTROLLER",
+        "name": "upload_to_minio",
+        "parameters": {
+          "branch": "${parameters['branch']}",
+          "deployment_id": "${parameters['deployment_id']}"
+        },
+        "refId": "11",
+        "requisiteStageRefIds": [
+          "10"
+        ],
+        "type": "jenkins"
+      },
+      {
+        "continuePipeline": false,
+        "failPipeline": true,
+        "job": "capo_upgrade_update_inventory",
+        "master": "FEM_CONTROLLER",
+        "name": "update_inventory",
+        "parameters": {
+          "branch": "${parameters['branch']}",
+          "deployment_id": "${parameters['deployment_id']}"
+        },
+        "refId": "12",
+        "requisiteStageRefIds": [
+          "11"
+        ],
+        "type": "jenkins"
+      },
+      {
+        "continuePipeline": false,
+        "failPipeline": true,
+        "job": "capo_upgrade_healthcheck",
+        "master": "FEM_CONTROLLER",
+        "name": "healthcheck",
+        "parameters": {
+          "branch": "${parameters['branch']}",
+          "deployment_id": "${parameters['deployment_id']}"
+        },
+        "refId": "13",
+        "requisiteStageRefIds": [
+          "12"
+        ],
+        "type": "jenkins"
+      },
+      {
+        "continuePipeline": false,
+        "failPipeline": true,
+        "job": "capo_upgrade_deploy_monitoring",
+        "master": "FEM_CONTROLLER",
+        "name": "deploy_monitoring",
+        "parameters": {
+          "branch": "${parameters['branch']}",
+          "deployment_id": "${parameters['deployment_id']}"
+        },
+        "refId": "14",
+        "requisiteStageRefIds": [
+          "13"
+        ],
+        "type": "jenkins"
+      }
+    ],
+    "triggers": [
+      {
+        "enabled": true,
+        "source": "fem_4s11_cENM_CAPO_Upgrade_Pipeline",
+        "type": "webhook"
+      }
+    ]
+  }

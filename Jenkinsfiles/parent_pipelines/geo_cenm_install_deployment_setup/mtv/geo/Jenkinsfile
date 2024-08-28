@@ -1,0 +1,315 @@
+import jenkins.model.*
+def SLAVE_FINAL = null
+
+node(SLAVE) {
+  stage('Determine Slave'){
+     if (env.is_network_type_STC == "true") {
+        SLAVE_FINAL = STC_SLAVE
+     } else {
+        SLAVE_FINAL = SLAVE
+     }
+   }
+}
+
+pipeline {
+
+    agent {
+        node {
+            label SLAVE_FINAL
+        }
+    }
+
+    options {
+        timestamps()
+    }
+
+    stages {
+        stage('Set build name and description') {
+            steps {
+                script {
+                    currentBuild.displayName = "Deployment Setup on ${cluster_id}"
+                    currentBuild.description = "<b>Product Set Version = ${product_set_version}<br>MT Utils Version = ${mt_utils_version}</b>"
+                }
+            }
+        }
+
+        stage('Load common methods') {
+            steps {
+                script {
+                    commonMethods = load("${env.WORKSPACE}/Jenkinsfiles/common_methods/CommonMethods.groovy")
+                }
+            }
+        }
+
+        stage('Writing Parameters to parameters.properties') {
+            steps {
+                script {
+                    commonMethods.exportEnvVariablesToFile("parameters.properties")
+                }
+            }
+        }
+
+        stage('Downloading MT Utils Pipeline Scripts') {
+            steps {
+                script {
+                    commonMethods.downloadMtUtils()
+                }
+            }
+        }
+
+        stage('Storing Job Details in Slave') {
+            steps {
+                script {
+                    def node_name = "${SLAVE_FINAL}"
+                    def date = new Date()
+                    sh " echo \" NODE_NAME : ${env.NODE_NAME} ; JOB_NAME : ${env.JOB_NAME} ; BUILD_NUMBER : ${env.BUILD_NUMBER} ; $date \" >> \"/home/lciadm100/jenkins/job_details.log\" "
+                }
+            }
+        }
+
+        stage('cENM Copy Utils Repo To Environment') {
+            steps {
+                script {
+                    if (checkJobBuildable("cENM_Copy_Utils_Repo_To_Environment")) {
+                        def Cenm_Copy_Utils_Repo_To_Environment = build(
+                            job: "cENM_Copy_Utils_Repo_To_Environment",
+                            propagate: true,
+                            wait: true,
+                            parameters: [
+                                string(name: 'cluster_id', value: env.cluster_id),
+                                string(name: 'mt_utils_version', value: env.mt_utils_version),
+                            ]
+                        )
+                    } else {
+                        echo "cENM_Copy_Utils_Repo_To_Environment Job is disabled. So skipping"
+                    }
+                }
+            }
+        }
+
+        stage('cENM Setup Workload VM') {
+            steps {
+                script {
+                    if (checkJobBuildable("cENM_Setup_Workload_VM")) {
+                        def Cenm_Setup_Workload_VM = build(
+                            job: "cENM_Setup_Workload_VM",
+                            propagate: true,
+                            wait: true,
+                            parameters: [
+                                string(name: 'cluster_id', value: env.cluster_id),
+                                string(name: 'mt_utils_version', value: env.mt_utils_version),
+                                string(name: 'tor_utils_version', value: env.tor_utils_version),
+                                string(name: 'drop', value: env.drop),
+                                string(name: 'product_set_version', value: env.product_set_version),
+                                string(name: 'test_phase', value: env.test_phase),
+                                string(name: 'is_network_type_STC', value: env.is_network_type_STC),
+                            ]
+                        )
+                    } else {
+                        echo "cENM_Setup_Workload_VM Job is disabled. So skipping"
+                    }
+                }
+            }
+        }
+
+        stage('cENM Setup DDC') {
+            steps {
+                script {
+                    if (checkJobBuildable("cENM_Setup_DDC")) {
+                        def Cenm_Setup_DDC = build(
+                            job: "cENM_Setup_DDC",
+                            propagate: true,
+                            wait: true,
+                            parameters: [
+                                string(name: 'cluster_id', value: env.cluster_id),
+                                string(name: 'mt_utils_version', value: env.mt_utils_version),
+                                string(name: 'test_phase', value: env.test_phase),
+                                string(name: 'is_network_type_STC', value: env.is_network_type_STC),
+                            ]
+                        )
+                    } else {
+                        echo "cENM_Setup_DDC Job is disabled. So skipping"
+                    }
+                }
+            }
+        }
+
+        stage('cENM Deploy NSS Testware Utilities') {
+            steps {
+                script {
+                    if (env.is_network_type_STC == "true") {
+                        if (checkJobBuildable("cENM_STC_Deploy_NSS_Testware_Utilities")) {
+                            def Cenm_STC_Deploy_NSS_Testware_Utilities = build(
+                                job: "cENM_STC_Deploy_NSS_Testware_Utilities",
+                                propagate: true,
+                                wait: true,
+                                parameters: [
+                                    string(name: 'cluster_id', value: env.cluster_id),
+                                    string(name: 'test_phase', value: env.test_phase),
+                                    string(name: 'mt_utils_version', value: env.mt_utils_version),
+                                    string(name: 'nss_utils_version', value: env.nss_utils_version),
+                                    string(name: 'product_set_version', value: env.product_set_version),
+                                ]
+                            )
+                        } else {
+                            echo "cENM_STC_Deploy_NSS_Testware_Utilities Job is disabled. So skipping"
+                        }
+                    } else {
+                        if (checkJobBuildable("cENM_Deploy_NSS_Testware_Utilities")) {
+                            def Cenm_Deploy_NSS_Testware_Utilities = build(
+                                job: "cENM_Deploy_NSS_Testware_Utilities",
+                                propagate: true,
+                                wait: true,
+                                parameters: [
+                                    string(name: 'cluster_id', value: env.cluster_id),
+                                    string(name: 'test_phase', value: env.test_phase),
+                                    string(name: 'mt_utils_version', value: env.mt_utils_version),
+                                    string(name: 'nss_utils_version', value: env.nss_utils_version),
+                                    string(name: 'product_set_version', value: env.product_set_version),
+                                ]
+                            )
+                        } else {
+                            echo "cENM_Deploy_NSS_Testware_Utilities Job is disabled. So skipping"
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('cENM Add Licenses') {
+            steps {
+                script {
+                    if (env.is_network_type_STC == "true") {
+                        if (checkJobBuildable("cENM_STC_Add_Licenses")) {
+                            def Cenm_STC_Add_Licenses = build(
+                                job: "cENM_STC_Add_Licenses",
+                                propagate: true,
+                                wait: true,
+                                parameters: [
+                                    string(name: 'test_phase', value: env.test_phase),
+                                    string(name: 'cluster_id', value: env.cluster_id),
+                                    string(name: 'mt_utils_version', value: env.mt_utils_version),
+                                    string(name: 'drop', value: env.drop),
+                                    string(name: 'product_set_version', value: env.product_set_version),
+                                    string(name: 'deployment_type', value: env.deployment_type),
+                                ]
+                            )
+                        } else {
+                            echo "cENM_STC_Add_Licenses Job is disabled. So skipping"
+                        }
+                    } else {
+                        if (checkJobBuildable("cENM_Add_Licenses")) {
+                            def Cenm_Add_Licenses = build(
+                                job: "cENM_Add_Licenses",
+                                propagate: true,
+                                wait: true,
+                                parameters: [
+                                    string(name: 'test_phase', value: env.test_phase),
+                                    string(name: 'cluster_id', value: env.cluster_id),
+                                    string(name: 'mt_utils_version', value: env.mt_utils_version),
+                                    string(name: 'drop', value: env.drop),
+                                    string(name: 'product_set_version', value: env.product_set_version),
+                                    string(name: 'deployment_type', value: env.deployment_type),
+                                ]
+                            )
+                        } else {
+                            echo "cENM_Add_Licenses Job is disabled. So skipping"
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('cENM Trust Profiles') {
+            steps {
+                script {
+                    if (env.is_network_type_STC == "true") {
+                        if (checkJobBuildable("cENM_STC_Update_Trust_Profile")) {
+                            def Cenm_STC_Update_Trust_Profile = build(
+                                job: "cENM_STC_Update_Trust_Profile",
+                                propagate: true,
+                                wait: true,
+                                parameters: [
+                                    string(name: 'clusterId', value: env.cluster_id),
+                                    string(name: 'drop', value: env.drop),
+                                    string(name: 'simdep_release', value: env.simdep_release),
+                                    string(name: 'Mt_utils_version', value: env.mt_utils_version),
+                                    string(name: 'deployment_type', value: 'Cloud'),
+                                ]
+                            )
+                        } else {
+                            echo "cENM_STC_Update_Trust_Profile Job is disabled. So skipping"
+                        }
+                    } else {
+                        if (checkJobBuildable("cENM_Update_Trust_Profile")) {
+                            def Cenm_Update_Trust_Profile = build(
+                                job: "cENM_Update_Trust_Profile",
+                                propagate: true,
+                                wait: true,
+                                parameters: [
+                                    string(name: 'clusterId', value: env.cluster_id),
+                                    string(name: 'drop', value: env.drop),
+                                    string(name: 'simdep_release', value: env.simdep_release),
+                                    string(name: 'Mt_utils_version', value: env.mt_utils_version),
+                                    string(name: 'nodesCleanUp', value: env.nodesCleanUp),
+                                    string(name: 'deployment_type', value: 'Cloud'),
+                                ]
+                            )
+                        } else {
+                            echo "cENM_Update_Trust_Profile Job is disabled. So skipping"
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('cENM Deploy APT') {
+            steps {
+                script {
+                    if (checkJobBuildable("cENM_Deploy_APT_Tool")) {
+                        def Cenm_Deploy_APT_Tool = build(
+                            job: "cENM_Deploy_APT_Tool",
+                            propagate: true,
+                            wait: true,
+                            parameters: [
+                                string(name: 'cluster_id', value: env.cluster_id),
+                                string(name: 'mt_utils_version', value: env.mt_utils_version),
+                                string(name: 'test_phase', value: env.test_phase),
+                                string(name: 'product_set_version', value: env.product_set_version),
+                                string(name: 'apt_version', value: env.apt_version),
+                                string(name: 'is_network_type_STC', value: env.is_network_type_STC),
+                            ]
+                        )
+                    } else {
+                        echo "cENM_Deploy_APT_Tool Job is disabled. So skipping"
+                    }
+                }
+            }
+        }
+
+        stage('cENM RVB Copy TestScripts Repo') {
+            steps {
+                script {
+                    if (checkJobBuildable("cENM_RVB_Copy_TestScripts_Repo")) {
+                        def Cenm_RVB_Copy_TestScripts_Repo = build(
+                            job: "cENM_RVB_Copy_TestScripts_Repo",
+                            propagate: true,
+                            wait: true,
+                            parameters: [
+                                string(name: 'cluster_id', value: env.cluster_id),
+                                string(name: 'mt_utils_version', value: env.mt_utils_version),
+                            ]
+                        )
+                    } else {
+                        echo "cENM_RVB_Copy_TestScripts_Repo Job is disabled. So skipping"
+                    }
+                }
+            }
+        }
+    }
+}
+
+def checkJobBuildable(jobName) {
+    def isBuildable = Jenkins.instance.getItem(jobName).isBuildable();
+    return isBuildable
+}

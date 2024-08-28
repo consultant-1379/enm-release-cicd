@@ -1,0 +1,68 @@
+def returnParametersForDsl() {
+    return [REGULAR_SLAVES: env.REGULAR_SLAVES, OPENSTACK_SLAVES: env.OPENSTACK_SLAVES, TEAM_EMAIL: env.TEAM_EMAIL, PERMISSION_GROUPS: env.PERMISSION_GROUPS]
+}
+
+def returnListOfSpinnakerCenmCbrsIntegratedRollbackJobs() {
+    def listOfSpinnakerCenmCbrsIntegratedRollbackJobs = []
+
+    // === Spinnaker cENM CbrsIntegratedRollback Pipeline Updater ===
+    listOfSpinnakerCenmCbrsIntegratedRollbackJobs = listOfSpinnakerCenmCbrsIntegratedRollbackJobs.plus('DSL/spinnakerpipeline/cenm/integrated_cbrs_rollback/SpinnakerCenmIntgRollbackPipelineUpdater.groovy')
+
+    // === Spinnaker cENM CbrsIntegratedRollback Pipeline Generator Updater ===
+    listOfSpinnakerCenmCbrsIntegratedRollbackJobs = listOfSpinnakerCenmCbrsIntegratedRollbackJobs.plus('pipeline_generation/spinnaker/integrated_cbrs_rollback/DSL/SpinnakerCenmIntCbrsRollbackPipelineUpdater.groovy')
+
+    return listOfSpinnakerCenmCbrsIntegratedRollbackJobs
+}
+
+pipeline {
+    agent {
+        node {
+            label OPENSTACK_SLAVES
+        }
+    }
+
+    environment {
+        DSL_CLASSPATH = 'DSL'
+    }
+
+    stages {
+        stage ('Validate required parameters set') {
+            when {
+                anyOf {
+                    expression {
+                        env.REGULAR_SLAVES == null
+                    }
+                    expression {
+                        env.OPENSTACK_SLAVES == null
+                    }
+                    expression {
+                        env.TEAM_EMAIL == null
+                    }
+                }
+            }
+            steps {
+                error('Some required parameter(s) not set. Please supply a value for all required parameters')
+            }
+        }
+        stage ('Default PERMISSION_GROUPS if null') {
+            when {
+                expression {
+                    env.PERMISSION_GROUPS == null
+                }
+            }
+            steps {
+                script {
+                    env.PERMISSION_GROUPS = 'authenticated'
+                }
+            }
+        }
+
+        stage('Generate Spinnaker cENM Cbrs Integrated Rollback Pipeline Jobs') {
+            steps {
+                jobDsl targets: returnListOfSpinnakerCenmCbrsIntegratedRollbackJobs().join('\n'),
+                    additionalParameters: returnParametersForDsl(),
+                    additionalClasspath: env.DSL_CLASSPATH
+            }
+        }
+    }
+}

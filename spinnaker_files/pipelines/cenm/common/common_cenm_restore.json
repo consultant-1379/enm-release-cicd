@@ -1,0 +1,308 @@
+{
+    "application": "APPLICATION_NAME",
+    "disabled": false,
+    "keepWaitingPipelines": true,
+    "name": "PIPELINE_NAME",
+    "notifications": [
+      {
+        "address": "BumbleBee.ENM@tcs.com",
+        "cc": "",
+        "level": "pipeline",
+        "type": "email",
+        "when": [
+          "pipeline.failed"
+        ]
+      }
+    ],
+    "parameterConfig": [
+      {
+        "default": "",
+        "description": "",
+        "hasOptions": false,
+        "label": "",
+        "name": "environment_name",
+        "options": [
+          {
+            "value": ""
+          }
+        ],
+        "pinned": false,
+        "required": true
+      },
+      {
+        "default": "False",
+        "description": "NOTE: Make this parameter true if you have moved to NEW DIT VERSIONING SOLUTION",
+        "hasOptions": true,
+        "label": "",
+        "name": "is_dit_versioning_applied",
+        "options": [
+          {
+            "value": "False"
+          },
+          {
+            "value": "True"
+          }
+        ],
+        "pinned": false,
+        "required": true
+      },
+      {
+        "default": "",
+        "description": "",
+        "hasOptions": false,
+        "label": "",
+        "name": "backup_name",
+        "options": [
+          {
+            "value": ""
+          }
+        ],
+        "pinned": false,
+        "required": false
+      },
+      {
+        "default": "",
+        "description": "",
+        "hasOptions": false,
+        "label": "",
+        "name": "cenm_product_set_version",
+        "options": [
+          {
+            "value": ""
+          }
+        ],
+        "pinned": false,
+        "required": true
+      },
+      {
+        "default": "RELEASE",
+        "description": "",
+        "hasOptions": false,
+        "label": "",
+        "name": "mt_utils_version",
+        "options": [
+          {
+            "value": ""
+          }
+        ],
+        "pinned": false,
+        "required": true
+      },
+      {
+        "default": "",
+        "description": "",
+        "hasOptions": false,
+        "label": "",
+        "name": "drop",
+        "options": [
+          {
+            "value": ""
+          }
+        ],
+        "pinned": false,
+        "required": true
+      },
+      {
+        "default": "eric-enm-integration-production-values",
+        "description": "NOTE : CSAR supports only eric-enm-integration-production-values and eric-enm-integration-extra-large-production-values.",
+        "hasOptions": true,
+        "label": "",
+        "name": "integration_value_type",
+        "options": [
+          {
+            "value": "eric-enm-integration-production-values"
+          },
+          {
+            "value": "eric-enm-integration-extra-large-production-values"
+          },
+          {
+            "value": "eric-enm-multi-instance-functional-integration-values"
+          },
+          {
+            "value": "eric-enm-single-instance-production-integration-values"
+          },
+          {
+            "value": "eric-enm-integration-functional-test-values"
+          },
+          {
+            "value": "eric-enm-integration-openstack-core-values"
+          }
+        ],
+        "pinned": false,
+        "required": true
+      },
+      {
+        "default": "ci_internal",
+        "description": "",
+        "hasOptions": true,
+        "label": "",
+        "name": "stage_area",
+        "options": [
+          {
+            "value": "ci_internal"
+          },
+          {
+            "value": "drop"
+          }
+        ],
+        "pinned": false,
+        "required": true
+      },
+      {
+        "default": "charts",
+        "description": "",
+        "hasOptions": true,
+        "label": "",
+        "name": "deployment_mechanism",
+        "options": [
+          {
+            "value": "csar"
+          },
+          {
+            "value": "charts"
+          }
+        ],
+        "pinned": false,
+        "required": true
+      },
+      {
+        "default": "csar",
+        "description": "",
+        "hasOptions": true,
+        "label": "",
+        "name": "Artifact_type",
+        "options": [
+          {
+            "value": "csar_lite"
+          },
+          {
+            "value": "csar"
+          },
+          {
+            "value": "snapshot_csar_lite"
+          }
+        ],
+        "pinned": false,
+        "required": true
+      },
+      {
+        "default": "false",
+        "description": "Select true if the deployment is based on STC Network",
+        "hasOptions": true,
+        "label": "",
+        "name": "is_network_type_STC",
+        "options": [
+          {
+            "value": "false"
+          },
+          {
+            "value": "true"
+          }
+        ],
+        "pinned": false,
+        "required": true
+      },
+      {
+        "default": "Restore",
+        "description": "",
+        "hasOptions": true,
+        "label": "",
+        "name": "use_case",
+        "options": [
+          {
+            "value": "Restore"
+          }
+        ],
+        "pinned": false,
+        "required": true
+      },
+      {
+        "default": "small-production",
+        "description": "",
+        "hasOptions": true,
+        "label": "",
+        "name": "deployment_size",
+        "options": [
+          {
+            "value": "small-production"
+          },
+          {
+            "value": "extra-large-production"
+          },
+          {
+            "value": "single-instance"
+          },
+          {
+            "value": "multi-instance"
+          }
+        ],
+        "pinned": false,
+        "required": true
+      },
+      {
+        "default": "helm",
+        "description": "",
+        "hasOptions": true,
+        "label": "",
+        "name": "orchestration_type",
+        "options": [
+          {
+            "value": "helm"
+          },
+          {
+            "value": "EVNFM"
+          }
+        ],
+        "pinned": false,
+        "required": true
+      },
+      {
+        "default": "other",
+        "description": "",
+        "hasOptions": true,
+        "label": "",
+        "name": "container_registry_type",
+        "options": [
+          {
+            "value": "other"
+          },
+          {
+            "value": "EVNFM"
+          }
+        ],
+        "pinned": false,
+        "required": true
+      }
+    ],
+    "spelEvaluator": "v4",
+    "stages": [
+      {
+        "continuePipeline": false,
+        "failPipeline": true,
+        "job": "cENM_Restore_Flow",
+        "master": "FEM_CONTROLLER",
+        "name": "cENM_Restore_Flow",
+        "parameters": {
+          "backup_name": "${parameters['backup_name']}",
+          "cenm_product_set_version": "${parameters['cenm_product_set_version']}",
+          "mt_utils_version": "${parameters['mt_utils_version']}",
+          "integration_value_type": "${parameters['integration_value_type']}",
+          "cluster_id": "${parameters['environment_name']}",
+          "drop": "${parameters['drop']}",
+          "stage_area": "${parameters['stage_area']}",
+          "deployment_mechanism": "${parameters['deployment_mechanism']}",
+          "Artifact_type": "${parameters['Artifact_type']}",
+          "container_registry_type": "${parameters['container_registry_type']}",
+          "deployment_size": "${parameters['deployment_size']}",
+          "is_dit_versioning_applied": "${parameters['is_dit_versioning_applied']}",
+          "is_network_type_STC": "${parameters['is_network_type_STC']}",
+          "orchestration_type": "${parameters['orchestration_type']}"
+        },
+        "refId": "1",
+        "requisiteStageRefIds": [],
+        "stageTimeoutMs": 36000000,
+        "type": "jenkins"
+      }
+    ],
+    "triggers": []
+  }

@@ -1,0 +1,22 @@
+def callChildJob(checkJobBuildable) {
+    stage('cENM Deploy NSS Testware Utilities') {
+        if (checkJobBuildable("cENM_Deploy_NSS_Testware_Utilities")) {
+            def Cenm_Deploy_NSS_Testware_Utilities = build(
+                job: "cENM_Deploy_NSS_Testware_Utilities",
+                propagate: true,
+                wait: true,
+                parameters: [
+                    string(name: 'cluster_id', value: env.cluster_id),
+                    string(name: 'test_phase', value: env.test_phase),
+                    string(name: 'mt_utils_version', value: env.mt_utils_version),
+                    string(name: 'nss_utils_version', value: env.nss_utils_version),
+                    string(name: 'product_set_version', value: env.product_set_version),
+                ]
+            )
+        } else {
+            echo "cENM_Deploy_NSS_Testware_Utilities Job is disabled. So skipping"
+        }
+    }
+}
+
+return this

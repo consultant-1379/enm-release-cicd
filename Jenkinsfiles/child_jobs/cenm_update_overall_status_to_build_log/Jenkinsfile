@@ -1,0 +1,52 @@
+def commonMethods
+
+pipeline {
+    agent {
+        node {
+            label SLAVE
+        }
+    }
+    options {
+        timestamps()
+    }
+    stages {
+        stage('Load common methods') {
+            steps {
+                script {
+                    commonMethods = load("${env.WORKSPACE}/Jenkinsfiles/common_methods/CommonMethods.groovy")
+                }
+            }
+        }
+
+        stage('Set build name and description') {
+            steps {
+                script {
+                    currentBuild.displayName = "Updating overall status for ${to_ps}"
+                    currentBuild.description = "<b>cENM product_set_version = ${to_ps}<br>Overall Status = ${overall_status}</b>"
+                }
+            }
+        }
+
+        stage('Downloading MT Utils Pipeline Scripts') {
+            steps {
+                script {
+                    commonMethods.downloadMtUtils()
+                }
+            }
+        }
+
+        stage('Writing Parameters to parameters.properties') {
+            steps {
+                script {
+                    commonMethods.exportEnvVariablesToFile("parameters.properties")
+                }
+            }
+        }
+
+        stage('Sending Confidence Level') {
+            steps{
+                sh 'MTELoopScripts/pipeline_scripts/cenm_update_overall_status_to_buildlog_setup.sh ${WORKSPACE}/parameters.properties || exit 1'
+            }
+        }
+    }
+}

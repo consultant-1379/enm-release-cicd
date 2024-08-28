@@ -1,0 +1,68 @@
+def returnParametersForDsl() {
+    return [TE_DOCKER_SLAVES: env.TE_DOCKER_SLAVES, OPENSTACK_SLAVES: env.OPENSTACK_SLAVES, TEAM_EMAIL: env.TEAM_EMAIL, PERMISSION_GROUPS: env.PERMISSION_GROUPS]
+}
+
+def returnListOfSpinnakerCenmInstallJobs() {
+    def listOfSpinnakerCenmInstallJobs = []
+
+    // === II Spinnaker Pipeline Updater ===
+    listOfSpinnakerCenmInstallJobs = listOfSpinnakerCenmInstallJobs.plus('DSL/spinnakerpipeline/cenm/install/cdl/SpinnakerCenmPipelineInstallUpdater.groovy')
+
+    // === Spinnaker II Pipeline Generator Updater ===
+    listOfSpinnakerCenmInstallJobs = listOfSpinnakerCenmInstallJobs.plus('pipeline_generation/spinnaker/install/cdl/DSL/spinnakercenminstallpipelineupdater/SpinnakerCenmInstallPipelineUpdater.groovy')
+
+    return listOfSpinnakerCenmInstallJobs
+}
+
+pipeline {
+    agent {
+        node {
+            label OPENSTACK_SLAVES
+        }
+    }
+
+    environment {
+        DSL_CLASSPATH = 'DSL'
+    }
+
+    stages {
+        stage ('Validate required parameters set') {
+            when {
+                anyOf {
+                    expression {
+                        env.TE_DOCKER_SLAVES == null
+                    }
+                    expression {
+                        env.OPENSTACK_SLAVES == null
+                    }
+                    expression {
+                        env.TEAM_EMAIL == null
+                    }
+                }
+            }
+            steps {
+                error('Some required parameter(s) not set. Please supply a value for all required parameters')
+            }
+        }
+        stage ('Default PERMISSION_GROUPS if null') {
+            when {
+                expression {
+                    env.PERMISSION_GROUPS == null
+                }
+            }
+            steps {
+                script {
+                    env.PERMISSION_GROUPS = 'authenticated'
+                }
+            }
+        }
+
+        stage('Generate Spinnaker cENM Install Pipeline Jobs') {
+            steps {
+                jobDsl targets: returnListOfSpinnakerCenmInstallJobs().join('\n'),
+                    additionalParameters: returnParametersForDsl(),
+                    additionalClasspath: env.DSL_CLASSPATH
+            }
+        }
+    }
+}

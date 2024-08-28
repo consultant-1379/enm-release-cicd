@@ -1,0 +1,77 @@
+def returnParametersForDsl() {
+    return [REGULAR_SLAVES: env.REGULAR_SLAVES, TE_DOCKER_SLAVES: env.TE_DOCKER_SLAVES, OPENSTACK_SLAVES: env.OPENSTACK_SLAVES, TEAM_EMAIL: env.TEAM_EMAIL, PERMISSION_GROUPS: env.PERMISSION_GROUPS]
+}
+
+def returnListOfCenmInstallJobs() {
+    def listOfCenmInstallJobs = []
+
+    // === Install ===
+    listOfCenmInstallJobs = listOfCenmInstallJobs.plus('DSL/seedpipelines/cenminstall/mtv/GeoCenmInstall.groovy')
+
+    // === Deployment Setup ===
+    listOfCenmInstallJobs = listOfCenmInstallJobs.plus('DSL/seedpipelines/geocenminstalldeploymentsetup/mtv/GeoCenmInstallDeploymentSetup.groovy')
+
+    // === Secondary Setup ===
+    listOfCenmInstallJobs = listOfCenmInstallJobs.plus('DSL/seedpipelines/geocenmsecondarysitesetup/mtv/GeoCenmSecondarySiteSetup.groovy')
+
+    // === II Updater ===
+    listOfCenmInstallJobs = listOfCenmInstallJobs.plus('pipeline_generation/cenm_install_deployment_setup_and_nw_setup/DSL/cenminstallpipelineupdater/mtv/geo/GeoCenmInstallPipelineUpdater.groovy')
+
+    return listOfCenmInstallJobs
+}
+
+pipeline {
+    agent {
+        node {
+            label OPENSTACK_SLAVES
+        }
+    }
+
+    environment {
+        DSL_CLASSPATH = 'DSL'
+    }
+
+    stages {
+        stage ('Validate required parameters set') {
+            when {
+                anyOf {
+                    expression {
+                        env.REGULAR_SLAVES == null
+                    }
+                    expression {
+                        env.TE_DOCKER_SLAVES == null
+                    }
+                    expression {
+                        env.OPENSTACK_SLAVES == null
+                    }
+                    expression {
+                        env.TEAM_EMAIL == null
+                    }
+                }
+            }
+            steps {
+                error('Some required parameter(s) not set. Please supply a value for all required parameters')
+            }
+        }
+        stage ('Default PERMISSION_GROUPS if null') {
+            when {
+                expression {
+                    env.PERMISSION_GROUPS == null
+                }
+            }
+            steps {
+                script {
+                    env.PERMISSION_GROUPS = 'authenticated'
+                }
+            }
+        }
+
+        stage('Generate Geo cENM Initial Install Pipeline') {
+            steps {
+                jobDsl targets: returnListOfCenmInstallJobs().join('\n'),
+                    additionalParameters: returnParametersForDsl(),
+                    additionalClasspath: env.DSL_CLASSPATH
+            }
+        }
+    }
+}

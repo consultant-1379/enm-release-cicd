@@ -1,0 +1,22 @@
+def callChildJob(checkJobBuildable) {
+    stage('cENM Apply Priority 2 Workload') {
+        if (checkJobBuildable("cENM_Apply_Priority_2_Workload")) {
+            def Cenm_Apply_Priority_2_Workload = build(
+                job: "cENM_Apply_Priority_2_Workload",
+                propagate: false,
+                wait: true,
+                parameters: [
+                    string(name: 'cluster_id', value: env.cluster_id),
+                    string(name: 'workload_profiles', value: env.workload_profiles),
+                    string(name: 'mt_utils_version', value: env.mt_utils_version),
+                    string(name: 'test_phase', value: env.test_phase),
+                    string(name: 'is_network_type_STC', value: env.is_network_type_STC),
+                ]
+            )
+        } else {
+            echo "cENM_Apply_Priority_2_Workload Job is disabled. So skipping"
+        }
+    }
+}
+
+return this

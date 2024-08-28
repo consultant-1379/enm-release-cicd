@@ -1,0 +1,103 @@
+def commonMethods
+def SLAVE_FINAL = null
+
+node(SLAVE) {
+  stage('Determine Slave'){
+     if (env.is_network_type_STC == "true") {
+        SLAVE_FINAL = STC_SLAVE
+     } else {
+        SLAVE_FINAL = SLAVE
+     }
+   }
+}
+
+pipeline {
+    agent {
+        node {
+            label SLAVE_FINAL
+        }
+    }
+    options {
+        timestamps()
+    }
+    stages {
+        stage('Load common methods') {
+            steps {
+                script {
+                    commonMethods = load("${env.WORKSPACE}/Jenkinsfiles/common_methods/CommonMethods.groovy")
+                }
+            }
+        }
+
+        stage('Writing Parameters to parameters.properties') {
+            steps {
+                script {
+                    commonMethods.exportEnvVariablesToFile("parameters.properties")
+                }
+            }
+        }
+
+        stage('Set build name') {
+            steps {
+                script {
+                    currentBuild.displayName = "Running Upgrade Assertions on ${cluster_id}"
+                }
+            }
+        }
+
+        stage('Downloading MT Utils Pipeline Scripts') {
+            steps {
+                script {
+                    commonMethods.downloadMtUtils()
+                }
+            }
+        }
+
+        stage('Running pre deployment logic') {
+            steps {
+                sh '''echo "pre_deployment=true" >> "${WORKSPACE}/parameters.properties"
+                    echo "restrict_to_features=UPGRADE" >> "${WORKSPACE}/parameters.properties"
+                    echo "conf_level_for_this_job=UG-Performance" >> "${WORKSPACE}/parameters.properties"
+
+                    sh MTELoopScripts/pipeline_scripts/run_workload_assertions_setup.sh "${WORKSPACE}/parameters.properties" || exit 1'''
+            }
+        }
+
+        stage('Inject environment variables') {
+            steps {
+                script {
+                    commonMethods.loadProperties("${WORKSPACE}/build.properties")
+                }
+            }
+        }
+
+        stage('Set build description') {
+            steps {
+                script {
+                    currentBuild.description = "<b>Test Phase = ${test_phase}<br>Start Time = ${start_time}<br>End Time = ${end_time}<br>Utils Version = ${mt_utils_version}</b>"
+                }
+            }
+        }
+
+        stage('Running setup script') {
+            steps {
+                sh '''echo "pre_deployment=false" >> "${WORKSPACE}/parameters.properties"
+
+                    sh MTELoopScripts/pipeline_scripts/run_workload_assertions_setup.sh "${WORKSPACE}/parameters.properties" || exit 1'''
+            }
+        }
+    }
+    post {
+        always {
+            publishHTML target: [
+                allowMissing: true,
+                alwaysLinkToLastBuild: true,
+                includes: '**/*',
+                keepAll: true,
+                reportDir: 'report',
+                reportFiles: 'index.html',
+                reportName: 'Assertions Report'
+            ]
+        }
+    }
+}

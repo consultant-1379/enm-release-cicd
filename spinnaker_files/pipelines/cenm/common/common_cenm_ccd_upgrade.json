@@ -1,0 +1,314 @@
+{
+  "application": "APPLICATION_NAME",
+  "disabled": false,
+  "keepWaitingPipelines": true,
+  "name": "PIPELINE_NAME",
+  "limitConcurrent": false,
+  "notifications": [
+    {
+      "address": "BumbleBee.ENM@tcs.com",
+      "cc": "",
+      "level": "pipeline",
+      "type": "email",
+      "when": [
+        "pipeline.failed"
+      ]
+    }
+  ],
+  "parameterConfig": [
+    {
+      "default": "",
+      "description": "This Parameter Value should be from DIT. Example: c11a003",
+      "hasOptions": false,
+      "label": "deployment_id",
+      "name": "deployment_id",
+      "options": [
+        {
+          "value": ""
+        }
+      ],
+      "pinned": false,
+      "required": true
+    },
+    {
+      "default": "master",
+      "description": "Enter branch name",
+      "hasOptions": false,
+      "label": "branch",
+      "name": "branch",
+      "options": [
+        {
+          "value": "master"
+        }
+      ],
+      "pinned": false,
+      "required": true
+    }
+  ],
+  "spelEvaluator": "v4",
+  "stages": [
+    {
+      "continuePipeline": false,
+      "failPipeline": true,
+      "job": "ccd_upgrade_healthcheck",
+      "master": "FEM_CONTROLLER",
+      "name": "healthcheck",
+      "parameters": {
+        "branch": "${parameters['branch']}",
+        "deployment_id": "${parameters['deployment_id']}"
+      },
+      "refId": "1",
+      "requisiteStageRefIds": [],
+      "type": "jenkins"
+    },
+    {
+      "continuePipeline": false,
+      "failPipeline": true,
+      "job": "ccd_upgrade_verify_dtt_upgrade_params",
+      "master": "FEM_CONTROLLER",
+      "name": "verify_dtt_upgrade_params",
+      "parameters": {
+        "branch": "${parameters['branch']}",
+        "deployment_id": "${parameters['deployment_id']}"
+      },
+      "refId": "2",
+      "requisiteStageRefIds": [
+        "1"
+      ],
+      "type": "jenkins"
+    },
+    {
+      "continuePipeline": false,
+      "failPipeline": true,
+      "job": "ccd_upgrade_prepare_upgrade_image",
+      "master": "FEM_CONTROLLER",
+      "name": "prepare_upgrade_image",
+      "parameters": {
+        "branch": "${parameters['branch']}",
+        "deployment_id": "${parameters['deployment_id']}"
+      },
+      "refId": "3",
+      "requisiteStageRefIds": [
+        "2"
+      ],
+      "type": "jenkins"
+    },
+    {
+      "continuePipeline": false,
+      "failPipeline": true,
+      "job": "ccd_upgrade_upgrade_version_flavor",
+      "master": "FEM_CONTROLLER",
+      "name": "upgrade_version_flavor",
+      "parameters": {
+        "branch": "${parameters['branch']}",
+        "deployment_id": "${parameters['deployment_id']}"
+      },
+      "refId": "4",
+      "requisiteStageRefIds": [
+        "3"
+      ],
+      "type": "jenkins"
+    },
+    {
+      "continuePipeline": false,
+      "failPipeline": true,
+      "job": "ccd_upgrade_pre-req_check",
+      "master": "FEM_CONTROLLER",
+      "name": "pre-req_check",
+      "parameters": {
+        "branch": "${parameters['branch']}",
+        "deployment_id": "${parameters['deployment_id']}"
+      },
+      "refId": "5",
+      "requisiteStageRefIds": [
+        "4"
+      ],
+      "type": "jenkins"
+    },
+    {
+      "continuePipeline": false,
+      "failPipeline": true,
+      "job": "ccd_upgrade_generate_upgrade_config",
+      "master": "FEM_CONTROLLER",
+      "name": "generate_upgrade_config",
+      "parameters": {
+        "branch": "${parameters['branch']}",
+        "deployment_id": "${parameters['deployment_id']}"
+      },
+      "refId": "6",
+      "requisiteStageRefIds": [
+        "5"
+      ],
+      "type": "jenkins"
+    },
+    {
+      "continuePipeline": false,
+      "failPipeline": true,
+      "job": "ccd_upgrade_remove_from_prometheus",
+      "master": "FEM_CONTROLLER",
+      "name": "remove_from_prometheus",
+      "parameters": {
+        "branch": "${parameters['branch']}",
+        "deployment_id": "${parameters['deployment_id']}"
+      },
+      "refId": "7",
+      "requisiteStageRefIds": [
+        "6"
+      ],
+      "type": "jenkins"
+    },
+    {
+      "continuePipeline": false,
+      "failPipeline": true,
+      "job": "ccd_upgrade_remove_monitoring",
+      "master": "FEM_CONTROLLER",
+      "name": "remove_monitoring",
+      "parameters": {
+        "branch": "${parameters['branch']}",
+        "deployment_id": "${parameters['deployment_id']}"
+      },
+      "refId": "8",
+      "requisiteStageRefIds": [
+        "7"
+      ],
+      "type": "jenkins"
+    },
+    {
+      "continuePipeline": false,
+      "failPipeline": true,
+      "job": "ccd_upgrade_joinoqsqueue",
+      "master": "FEM_CONTROLLER",
+      "name": "join_queue",
+      "parameters": {
+        "branch": "${parameters['branch']}",
+        "deployment_id": "${parameters['deployment_id']}"
+      },
+      "refId": "9",
+      "requisiteStageRefIds": [
+        "8"
+      ],
+      "stageTimeoutMs": 43200000,
+      "type": "jenkins"
+    },
+    {
+      "continuePipeline": false,
+      "failPipeline": true,
+      "job": "ccd_upgrade_ccd_upgrade",
+      "master": "FEM_CONTROLLER",
+      "name": "ccd_upgrade",
+      "parameters": {
+        "branch": "${parameters['branch']}",
+        "deployment_id": "${parameters['deployment_id']}"
+      },
+      "refId": "10",
+      "requisiteStageRefIds": [
+        "9"
+      ],
+      "stageTimeoutMs": 16200000,
+      "type": "jenkins"
+    },
+    {
+      "continuePipeline": false,
+      "failPipeline": true,
+      "job": "ccd_upgrade_leaveoqsqueue",
+      "master": "FEM_CONTROLLER",
+      "name": "leave_queue",
+      "parameters": {
+        "branch": "${parameters['branch']}",
+        "deployment_id": "${parameters['deployment_id']}"
+      },
+      "refId": "11",
+      "requisiteStageRefIds": [
+        "10"
+      ],
+      "type": "jenkins"
+    },
+    {
+      "continuePipeline": false,
+      "failPipeline": true,
+      "job": "ccd_upgrade_ccd_post_install",
+      "master": "FEM_CONTROLLER",
+      "name": "ccd_post_install",
+      "parameters": {
+        "branch": "${parameters['branch']}",
+        "deployment_id": "${parameters['deployment_id']}"
+      },
+      "refId": "12",
+      "requisiteStageRefIds": [
+        "11"
+      ],
+      "type": "jenkins"
+    },
+    {
+      "continuePipeline": false,
+      "failPipeline": true,
+      "job": "ccd_upgrade_healthcheck",
+      "master": "FEM_CONTROLLER",
+      "name": "healthcheck",
+      "parameters": {
+        "branch": "${parameters['branch']}",
+        "deployment_id": "${parameters['deployment_id']}"
+      },
+      "refId": "13",
+      "requisiteStageRefIds": [
+        "12"
+      ],
+      "type": "jenkins"
+    },
+    {
+      "continuePipeline": false,
+      "failPipeline": true,
+      "job": "ccd_upgrade_add_to_monitoring",
+      "master": "FEM_CONTROLLER",
+      "name": "add_to_monitoring",
+      "parameters": {
+        "branch": "${parameters['branch']}",
+        "deployment_id": "${parameters['deployment_id']}"
+      },
+      "refId": "14",
+      "requisiteStageRefIds": [
+        "13"
+      ],
+      "type": "jenkins"
+    },
+    {
+      "continuePipeline": false,
+      "failPipeline": true,
+      "job": "ccd_upgrade_update_inventory",
+      "master": "FEM_CONTROLLER",
+      "name": "update_inventory",
+      "parameters": {
+        "branch": "${parameters['branch']}",
+        "deployment_id": "${parameters['deployment_id']}"
+      },
+      "refId": "15",
+      "requisiteStageRefIds": [
+        "14"
+      ],
+      "type": "jenkins"
+    },
+    {
+      "continuePipeline": false,
+      "failPipeline": true,
+      "job": "ccd_upgrade_post_upgrade_cleanup",
+      "master": "FEM_CONTROLLER",
+      "name": "post_upgrade_cleanup",
+      "parameters": {
+        "branch": "${parameters['branch']}",
+        "deployment_id": "${parameters['deployment_id']}"
+      },
+      "refId": "16",
+      "requisiteStageRefIds": [
+        "15"
+      ],
+      "type": "jenkins"
+    }
+  ],
+  "triggers": [
+    {
+      "enabled": true,
+      "source": "fem_4s11_cENM_CCD_Upgrade_Pipeline",
+      "type": "webhook"
+    }
+  ]
+}

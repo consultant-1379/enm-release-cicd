@@ -1,0 +1,68 @@
+def returnParametersForDsl() {
+    return [REGULAR_SLAVES: env.REGULAR_SLAVES, OPENSTACK_SLAVES: env.OPENSTACK_SLAVES, TEAM_EMAIL: env.TEAM_EMAIL, PERMISSION_GROUPS: env.PERMISSION_GROUPS]
+}
+
+def returnListOfCenmRestoreJobs() {
+    def listOfCenmRestoreJobs = []
+
+    // === Cenm Restore Standalone Job ===
+    listOfCenmRestoreJobs = listOfCenmRestoreJobs.plus('DSL/seedpipelines/cenmrestore/CenmRestore.groovy')
+
+    // === Restore Updater ===
+    listOfCenmRestoreJobs = listOfCenmRestoreJobs.plus('pipeline_generation/cenm_restore/DSL/cenmrestorepipelineupdater/CenmRestorePipelineUpdater.groovy')
+
+    return listOfCenmRestoreJobs
+}
+
+pipeline {
+    agent {
+        node {
+            label OPENSTACK_SLAVES
+        }
+    }
+
+    environment {
+        DSL_CLASSPATH = 'DSL'
+    }
+
+    stages {
+        stage ('Validate required parameters set') {
+            when {
+                anyOf {
+                    expression {
+                        env.REGULAR_SLAVES == null
+                    }
+                    expression {
+                        env.OPENSTACK_SLAVES == null
+                    }
+                    expression {
+                        env.TEAM_EMAIL == null
+                    }
+                }
+            }
+            steps {
+                error('Some required parameter(s) not set. Please supply a value for all required parameters')
+            }
+        }
+        stage ('Default PERMISSION_GROUPS if null') {
+            when {
+                expression {
+                    env.PERMISSION_GROUPS == null
+                }
+            }
+            steps {
+                script {
+                    env.PERMISSION_GROUPS = 'authenticated'
+                }
+            }
+        }
+
+        stage('Cenm Restore Pipeline Jobs') {
+            steps {
+                jobDsl targets: returnListOfCenmRestoreJobs().join('\n'),
+                    additionalParameters: returnParametersForDsl(),
+                    additionalClasspath: env.DSL_CLASSPATH
+            }
+        }
+    }
+}

@@ -1,0 +1,68 @@
+def returnParametersForDsl() {
+    return [REGULAR_SLAVES: env.REGULAR_SLAVES, OPENSTACK_SLAVES: env.OPENSTACK_SLAVES, TEAM_EMAIL: env.TEAM_EMAIL, PERMISSION_GROUPS: env.PERMISSION_GROUPS]
+}
+
+def returnListOfCenmRollbackBackupJobs() {
+    def listOfCenmRollbackBackupJobs = []
+
+    // === Cenm Rollback Backup Standalone Job ===
+    listOfCenmRollbackBackupJobs = listOfCenmRollbackBackupJobs.plus('DSL/seedpipelines/cenmrollbackbackup/CenmRollbackBackup.groovy')
+
+    // === Rollback Backup Updater ===
+    listOfCenmRollbackBackupJobs = listOfCenmRollbackBackupJobs.plus('pipeline_generation/cenm_rollback_backup/DSL/CenmRollbackBackupPipelineUpdater.groovy')
+    
+    return listOfCenmRollbackBackupJobs
+}
+
+pipeline {
+    agent {
+        node {
+            label OPENSTACK_SLAVES
+        }
+    }
+
+    environment {
+        DSL_CLASSPATH = 'DSL'
+    }
+
+    stages {
+        stage ('Validate required parameters set') {
+            when {
+                anyOf {
+                    expression {
+                        env.REGULAR_SLAVES == null
+                    }
+                    expression {
+                        env.OPENSTACK_SLAVES == null
+                    }
+                    expression {
+                        env.TEAM_EMAIL == null
+                    }
+                }
+            }
+            steps {
+                error('Some required parameter(s) not set. Please supply a value for all required parameters')
+            }
+        }
+        stage ('Default PERMISSION_GROUPS if null') {
+            when {
+                expression {
+                    env.PERMISSION_GROUPS == null
+                }
+            }
+            steps {
+                script {
+                    env.PERMISSION_GROUPS = 'authenticated'
+                }
+            }
+        }
+
+        stage('Cenm Rollback Pipeline Jobs') {
+            steps {
+                jobDsl targets: returnListOfCenmRollbackBackupJobs().join('\n'),
+                    additionalParameters: returnParametersForDsl(),
+                    additionalClasspath: env.DSL_CLASSPATH
+            }
+        }
+    }
+}

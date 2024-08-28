@@ -1,0 +1,74 @@
+def SLAVE_FINAL = null
+
+node(SLAVE) {
+  stage('Determine Slave'){
+     if (env.is_network_type_STC == "true") {
+        SLAVE_FINAL = STC_SLAVE
+     } else {
+        SLAVE_FINAL = SLAVE
+     }
+   }
+}
+
+pipeline {
+    agent {
+        node {
+            label SLAVE_FINAL
+        }
+    }
+    options {
+        timestamps()
+    }
+    stages {
+        stage('Writing Parameters to parameters.properties') {
+            steps {
+                exportEnvVariablesToFile("parameters.properties")
+            }
+        }
+
+        stage('Downloading MT Utils Pipeline Scripts') {
+            steps{
+                downloadMtUtils()
+            }
+        }
+
+        stage('Set build descriptions') {
+            steps {
+                script {
+                    currentBuild.displayName = "${cluster_id} Deploy Tor Utilities"
+                    currentBuild.description = "MT Utils Version = ${mt_utils_version}<br>Tor Utils Version = ${tor_utils_version}"
+                }
+            }
+        }
+
+        stage('Running Setup Script') {
+            steps{
+                sh "sh MTELoopScripts/pipeline_scripts/deploy_tor_utilities_internal_setup.sh ${WORKSPACE}/parameters.properties || exit 1"
+            }
+        }
+    }
+}
+
+def exportEnvVariablesToFile(String fileName) {
+    String properties = ""
+    env.getEnvironment().each { name, value ->
+        if(!value.contains("#") && !value.isEmpty()) {
+            properties += "${name}=${value}\n"
+        }
+    }
+    writeFile file: fileName, text: properties
+}
+
+def downloadMtUtils() {
+    sh '''
+        echo "INFO: Retrieving Scripts from Nexus"
+        tar_file_name="utils_${mt_utils_version}.tar.gz"
+        echo "INFO: Downloading file - ${tar_file_name} - to the workspace"
+        if [[ "${mt_utils_version}" == *"SNAPSHOT"* ]]; then
+            curl -s --noproxy \\* -L "https://arm1s11-eiffel004.eiffel.gic.ericsson.se:8443/nexus/service/local/artifact/maven/redirect?r=snapshots&g=com.ericsson.mtg&a=utils&p=tar.gz&v=${mt_utils_version}" -o ${tar_file_name}
+        else
+            curl -s --noproxy \\* -L "https://arm1s11-eiffel004.eiffel.gic.ericsson.se:8443/nexus/service/local/artifact/maven/redirect?r=releases&g=com.ericsson.mtg&a=utils&p=tar.gz&v=${mt_utils_version}" -o ${tar_file_name}
+        fi
+        tar -zxf ${tar_file_name}
+    '''
+}

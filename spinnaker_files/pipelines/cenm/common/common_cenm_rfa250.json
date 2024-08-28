@@ -1,0 +1,334 @@
+{
+  "application": "APPLICATION_NAME",
+  "disabled": false,
+  "keepWaitingPipelines": true,
+  "name": "PIPELINE_NAME",
+  "limitConcurrent": false,
+  "notifications": [
+    {
+      "address": "BumbleBee.ENM@tcs.com",
+      "cc": "",
+      "level": "pipeline",
+      "type": "email",
+      "when": [
+        "pipeline.failed"
+      ]
+    }
+  ],
+  "parameterConfig": [
+    {
+      "default": "",
+      "description": "",
+      "hasOptions": false,
+      "label": "",
+      "name": "environment_name",
+      "options": [
+        {
+          "value": ""
+        }
+      ],
+      "pinned": false,
+      "required": true
+    },
+    {
+      "default": "",
+      "description": "",
+      "hasOptions": false,
+      "label": "",
+      "name": "cenm_product_set_version",
+      "options": [
+        {
+          "value": ""
+        }
+      ],
+      "pinned": false,
+      "required": true
+    },
+    {
+      "default": "RELEASE",
+      "description": "",
+      "hasOptions": false,
+      "label": "",
+      "name": "mt_utils_version",
+      "options": [
+        {
+          "value": ""
+        }
+      ],
+      "pinned": false,
+      "required": true
+    },
+    {
+      "default": "AUTO",
+      "description": "",
+      "hasOptions": false,
+      "label": "",
+      "name": "central_csv_version",
+      "options": [
+        {
+          "value": ""
+        }
+      ],
+      "pinned": false,
+      "required": true
+    },
+    {
+      "default": "",
+      "description": "",
+      "hasOptions": false,
+      "label": "",
+      "name": "drop",
+      "options": [
+        {
+          "value": ""
+        }
+      ],
+      "pinned": false,
+      "required": true
+    },
+    {
+      "default": "AUTO",
+      "description": "",
+      "hasOptions": false,
+      "label": "",
+      "name": "taf_version",
+      "options": [
+        {
+          "value": ""
+        }
+      ],
+      "pinned": false,
+      "required": true
+    },
+    {
+      "default": "",
+      "description": "",
+      "hasOptions": true,
+      "label": "",
+      "name": "test_phase",
+      "options": [
+        {
+          "value": "MTE"
+        },
+        {
+          "value": "DROPBACK"
+        },
+        {
+          "value": "PLM"
+        }
+      ],
+      "pinned": false,
+      "required": true
+    },
+    {
+      "default": "AUTO",
+      "description": "",
+      "hasOptions": false,
+      "label": "",
+      "name": "taf_scheduler_version",
+      "options": [
+        {
+          "value": ""
+        }
+      ],
+      "pinned": false,
+      "required": true
+    },
+    {
+      "default": "NO",
+      "description": "",
+      "hasOptions": true,
+      "label": "",
+      "name": "send_confidence_level",
+      "options": [
+        {
+          "value": "NO"
+        },
+        {
+          "value": "YES"
+        }
+      ],
+      "pinned": false,
+      "required": true
+    }
+  ],
+  "spelEvaluator": "v4",
+  "stages": [
+    {
+      "continuePipeline": false,
+      "failPipeline": true,
+      "job": "cENM_Retrieve_ENM_Product_Set_Version",
+      "master": "FEM_CONTROLLER",
+      "name": "cENM_Retrieve_ENM_Product_Set_Flow",
+      "parameters": {
+        "product_set_version": "${parameters['cenm_product_set_version']}",
+        "cluster_id": "${parameters['environment_name']}"
+      },
+      "propertyFile": "artifact.properties",
+      "refId": "1",
+      "requisiteStageRefIds": [],
+      "stageTimeoutMs": 36000000,
+      "type": "jenkins"
+    },
+    {
+      "completeOtherBranchesThenFail": false,
+      "continuePipeline": true,
+      "failPipeline": false,
+      "job": "MTE_cENM_Upgrade_Functional_Acceptance_Tests_Flow",
+      "master": "FEM_CONTROLLER",
+      "name": "MTE_cENM_Upgrade_Functional_Acceptance_Tests_Flow",
+      "parameters": {
+        "cenm_product_set_version": "${parameters['cenm_product_set_version']}",
+        "central_csv_version": "${parameters['central_csv_version']}",
+        "cluster_id": "${parameters['environment_name']}",
+        "drop": "${parameters['drop']}",
+        "product_set_version": "${#stage('cENM_Retrieve_ENM_Product_Set_Flow')['context']['enm_product_set_version']}",
+        "send_confidence_level": "${parameters['send_confidence_level']}",
+        "taf_scheduler_version": "${parameters['taf_scheduler_version']}",
+        "taf_version": "${parameters['taf_version']}",
+        "test_phase": "${parameters['test_phase']}"
+      },
+      "refId": "2",
+      "requisiteStageRefIds": [
+        "1"
+      ],
+      "stageEnabled": {
+        "expression": "trigger[\"parameters\"][\"test_phase\"] == \"MTE\"",
+        "type": "expression"
+      },
+      "stageTimeoutMs": 36000000,
+      "type": "jenkins"
+    },
+    {
+      "continuePipeline": false,
+      "failPipeline": true,
+      "job": "cENM_Upgrade_Retrieve_Allure_URL_From_RFA250_Job",
+      "master": "FEM_CONTROLLER",
+      "name": "MTE_cENM_Retrieve_Allure_URL_From_RFA250_Job",
+      "parameters": {
+        "rfa250_url": "${#stage('MTE_cENM_Upgrade_Functional_Acceptance_Tests_Flow')['context']['buildInfo']['url']}",
+        "cluster_id": "${parameters['environment_name']}"
+      },
+      "propertyFile": "artifact.properties",
+      "refId": "3",
+      "requisiteStageRefIds": [
+        "2"
+      ],
+      "stageEnabled": {
+        "expression": "trigger[\"parameters\"][\"test_phase\"] == \"MTE\"",
+        "type": "expression"
+      },
+      "stageTimeoutMs": 36000000,
+      "type": "jenkins"
+    },
+    {
+      "continuePipeline": false,
+      "failPipeline": true,
+      "job": "MTE_cENM_Upgrade_Post_Functional_Acceptance_Test_Flow",
+      "master": "FEM_CONTROLLER",
+      "name": "MTE_cENM_Upgrade_Post_Functional_Acceptance_Tests_Flow",
+      "parameters": {
+        "cenm_product_set_version": "${parameters['cenm_product_set_version']}",
+        "allure_report_url": "${#stage('MTE_cENM_Retrieve_Allure_URL_From_RFA250_Job')['context']['ALLURE_LOG_URL']}",
+        "central_csv_version": "${parameters['central_csv_version']}",
+        "cluster_id": "${parameters['environment_name']}",
+        "trigger_RFA_250_staging": "False",
+        "drop": "${parameters['drop']}",
+        "product_set_version": "${#stage('cENM_Retrieve_ENM_Product_Set_Flow')['context']['enm_product_set_version']}",
+        "taf_scheduler_version": "${parameters['taf_scheduler_version']}",
+        "taf_version": "${parameters['taf_version']}",
+        "test_phase": "${parameters['test_phase']}"
+      },
+      "refId": "4",
+      "requisiteStageRefIds": [
+        "3"
+      ],
+      "stageEnabled": {
+        "expression": "trigger[\"parameters\"][\"test_phase\"] == \"MTE\"",
+        "type": "expression"
+      },
+      "stageTimeoutMs": 36000000,
+      "type": "jenkins"
+    },
+    {
+      "completeOtherBranchesThenFail": false,
+      "continuePipeline": true,
+      "failPipeline": false,
+      "job": "SPINOFF_cENM_Upgrade_Functional_Acceptance_Tests_Flow",
+      "master": "FEM_CONTROLLER",
+      "name": "SPINOFF_cENM_Upgrade_Functional_Acceptance_Tests_Flow",
+      "parameters": {
+        "cenm_product_set_version": "${parameters['cenm_product_set_version']}",
+        "central_csv_version": "${parameters['central_csv_version']}",
+        "cluster_id": "${parameters['environment_name']}",
+        "drop": "${parameters['drop']}",
+        "mt_utils_version": "${parameters['mt_utils_version']}",
+        "product_set_version": "${#stage('cENM_Retrieve_ENM_Product_Set_Flow')['context']['enm_product_set_version']}",
+        "send_confidence_level": "${parameters['send_confidence_level']}",
+        "taf_scheduler_version": "${parameters['taf_scheduler_version']}",
+        "taf_version": "${parameters['taf_version']}",
+        "test_phase": "${parameters['test_phase']}"
+      },
+      "refId": "5",
+      "requisiteStageRefIds": [
+        "1"
+      ],
+      "stageEnabled": {
+        "expression": "trigger[\"parameters\"][\"test_phase\"] == \"PLM\" || trigger[\"parameters\"][\"test_phase\"] == \"DROPBACK\"",
+        "type": "expression"
+      },
+      "stageTimeoutMs": 36000000,
+      "type": "jenkins"
+    },
+    {
+      "continuePipeline": false,
+      "failPipeline": true,
+      "job": "cENM_Upgrade_Retrieve_Allure_URL_From_RFA250_Job",
+      "master": "FEM_CONTROLLER",
+      "name": "SPINOFF_cENM_Retrieve_Allure_URL_From_RFA250_Job",
+      "parameters": {
+        "rfa250_url": "${#stage('SPINOFF_cENM_Upgrade_Functional_Acceptance_Tests_Flow')['context']['buildInfo']['url']}",
+        "cluster_id": "${parameters['environment_name']}"
+      },
+      "propertyFile": "artifact.properties",
+      "refId": "6",
+      "requisiteStageRefIds": [
+        "5"
+      ],
+      "stageEnabled": {
+        "expression": "trigger[\"parameters\"][\"test_phase\"] == \"PLM\" || trigger[\"parameters\"][\"test_phase\"] == \"DROPBACK\"",
+        "type": "expression"
+      },
+      "stageTimeoutMs": 36000000,
+      "type": "jenkins"
+    },
+    {
+      "continuePipeline": false,
+      "failPipeline": true,
+      "job": "SPINOFF_cENM_Upgrade_Post_Functional_Acceptance_Test_Flow",
+      "master": "FEM_CONTROLLER",
+      "name": "SPINOFF_cENM_Upgrade_Post_Functional_Acceptance_Tests_Flow",
+      "parameters": {
+        "cenm_product_set_version": "${parameters['cenm_product_set_version']}",
+        "allure_report_url": "${#stage('SPINOFF_cENM_Retrieve_Allure_URL_From_RFA250_Job')['context']['ALLURE_LOG_URL']}",
+        "central_csv_version": "${parameters['central_csv_version']}",
+        "cluster_id": "${parameters['environment_name']}",
+        "drop": "${parameters['drop']}",
+        "mt_utils_version": "${parameters['mt_utils_version']}",
+        "product_set_version": "${#stage('cENM_Retrieve_ENM_Product_Set_Flow')['context']['enm_product_set_version']}",
+        "taf_version": "${parameters['taf_version']}",
+        "test_phase": "${parameters['test_phase']}"
+      },
+      "refId": "7",
+      "requisiteStageRefIds": [
+        "6"
+      ],
+      "stageEnabled": {
+        "expression": "trigger[\"parameters\"][\"test_phase\"] == \"PLM\" || trigger[\"parameters\"][\"test_phase\"] == \"DROPBACK\"",
+        "type": "expression"
+      },
+      "stageTimeoutMs": 36000000,
+      "type": "jenkins"
+    }
+  ]
+}

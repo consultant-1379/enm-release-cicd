@@ -1,0 +1,149 @@
+import jenkins.model.*
+def SLAVE_FINAL = null
+
+node(SLAVE) {
+  stage('Determine Slave'){
+     if (env.is_network_type_STC == "true") {
+        SLAVE_FINAL = STC_SLAVE
+     } else {
+        SLAVE_FINAL = SLAVE
+     }
+   }
+}
+
+pipeline {
+
+    agent {
+        node {
+            label SLAVE_FINAL
+        }
+    }
+
+    options {
+        timestamps()
+    }
+
+    stages {
+        stage('Set build name and description') {
+            steps {
+                script {
+                    currentBuild.displayName = "Initial Install on ${cluster_id}"
+                    currentBuild.description = "<b>Drop = ${drop}<br>Product Set Version = ${cenm_product_set_version}<br>MT Utils Version = ${mt_utils_version}</b>"
+                }
+            }
+        }
+
+        stage('Load common methods') {
+            steps {
+                script {
+                    commonMethods = load("${env.WORKSPACE}/Jenkinsfiles/common_methods/CommonMethods.groovy")
+                }
+            }
+        }
+
+        stage('Writing Parameters to parameters.properties') {
+            steps {
+                script {
+                    commonMethods.exportEnvVariablesToFile("parameters.properties")
+                }
+            }
+        }
+
+        stage('Downloading MT Utils Pipeline Scripts') {
+            steps {
+                script {
+                    commonMethods.downloadMtUtils()
+                }
+            }
+        }
+
+        stage('Storing Job Details in Slave') {
+            steps {
+                script {
+                    def node_name = "${SLAVE_FINAL}"
+                    def date = new Date()
+                    sh " echo \" NODE_NAME : ${env.NODE_NAME} ; JOB_NAME : ${env.JOB_NAME} ; BUILD_NUMBER : ${env.BUILD_NUMBER} ; $date \" >> \"/home/lciadm100/jenkins/job_details.log\" "
+                }
+            }
+        }
+
+        stage('Execute EMT Pipeline script') {
+            steps{
+              sh "MTELoopScripts/pipeline_scripts/emt/jenkins/initial_build_setup.sh ${WORKSPACE}/parameters.properties initial || exit 1"
+            }
+        }
+
+        stage('STC MTV cENM Initial Install') {
+            when {
+                expression {
+                    env.is_network_type_STC == "true"
+                }
+            }
+            steps {
+                script {
+                    if (checkJobBuildable("cENM_Initial_Install")) {
+                        def Cenm_Initial_Install = build(
+                            job: "cENM_Initial_Install",
+                            propagate: true,
+                            wait: true,
+                            parameters: [
+                                string(name: 'deployment_mechanism', value: env.deployment_mechanism),
+                                string(name: 'integration_value_type', value: env.integration_value_type),
+                                string(name: 'drop', value: env.drop),
+                                string(name: 'environment_name', value: env.cluster_id),
+                                string(name: 'product_set_version', value: env.cenm_product_set_version),
+                                string(name: 'stage_area', value: 'ci_internal'),
+                                string(name: 'slave', value: SLAVE_FINAL),
+                            ]
+                        )
+                    } else {
+                        echo "cENM_Initial_Install Job is disabled. So skipping"
+                    }
+                }
+            }
+        }
+
+        stage('MTV cENM Initial Install') {
+            when {
+                expression {
+                    env.is_network_type_STC == "false"
+                }
+            }
+            steps {
+                script {
+                    if (checkJobBuildable("cENM_Initial_Install")) {
+                        def Cenm_Initial_Install = build(
+                            job: "cENM_Initial_Install",
+                            propagate: true,
+                            wait: true,
+                            parameters: [
+                                string(name: 'deployment_mechanism', value: env.deployment_mechanism),
+                                string(name: 'integration_value_type', value: env.integration_value_type),
+                                string(name: 'drop', value: env.drop),
+                                string(name: 'environment_name', value: env.cluster_id),
+                                string(name: 'product_set_version', value: env.cenm_product_set_version),
+                                string(name: 'stage_area', value: 'ci_internal'),
+                            ]
+                        )
+                    } else {
+                        echo "cENM_Initial_Install Job is disabled. So skipping"
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            script {
+                sh "MTELoopScripts/pipeline_scripts/emt/jenkins/initial_build_setup.sh ${WORKSPACE}/parameters.properties post_build || exit 1"
+            }
+        }
+    }
+}
+
+def checkJobBuildable(jobName) {
+    def isBuildable = Jenkins.instance.getItem(jobName).isBuildable();
+    return isBuildable
+}
+

@@ -1,0 +1,269 @@
+#!/usr/bin/env groovy
+def SLAVE_FINAL = null
+
+node(SLAVE) {
+  stage('Determine Slave'){
+     if (env.is_network_type_STC == "true") {
+        SLAVE_FINAL = STC_SLAVE
+     } else {
+        SLAVE_FINAL = SLAVE
+     }
+   }
+}
+
+pipeline {
+    agent {
+        node {
+            label SLAVE_FINAL
+        }
+    }
+    stages {
+        stage ('Clean workspace') {
+            steps {
+                deleteDir()
+            }
+        }
+        stage('Get Kube-Config File from DIT') {
+            steps {
+                script{
+                    sh '''
+curl -O "https://arm901-eiffel004.athtem.eei.ericsson.se:8443/nexus/content/repositories/nss-releases/com/ericsson/nss/scripts/jq/1.0.1/jq-1.0.1.tar" ; tar -xvf jq-1.0.1.tar ; chmod +x ./jq
+kube_config_document_id=`curl -s "http://atvdit.athtem.eei.ericsson.se/api/deployments/?q=name=$cluster_id" | ./jq '.[].documents[] | select(.schema_name=="cloud_native_enm_kube_config") | .document_id' | sed 's/\"//g'`
+KUBE_CRED=`curl -s "https://atvdit.athtem.eei.ericsson.se/api/documents/$kube_config_document_id" | ./jq '.name' | sed 's/\"//g'`
+rm -rf ${PWD}/.kube
+rm -f kubeConfig.properties
+mkdir -p ${PWD}/.kube
+chmod 775 ${PWD}/.kube
+curl -s "https://atvdit.athtem.eei.ericsson.se/api/documents/$kube_config_document_id" | ./jq '.content' | sed 's/\"//g' >> ${PWD}/.kube/${KUBE_CRED}
+chmod 664 ${PWD}/.kube/${KUBE_CRED}
+echo "${KUBE_CRED}" >> kubeConfig.properties
+                    '''
+                }
+            }
+        }
+        stage('Get NAMESPACE Details from DIT') {
+            steps {
+                script{
+                    sh '''
+site_config_document_id=`curl -s "http://atvdit.athtem.eei.ericsson.se/api/deployments/?q=name=$cluster_id" | ./jq '.[].documents[] | select(.schema_name=="cENM_site_information") | .document_id' | sed 's/\"//g'`
+NAMESPACE=`curl -s "https://atvdit.athtem.eei.ericsson.se/api/documents/$site_config_document_id" | ./jq '.content.global.namespace' | sed 's/\"//g'`
+rm -f namespace.properties
+echo ${NAMESPACE} >> namespace.properties
+                    '''
+                }
+            }
+        }
+        stage('cENM mediation restart') {
+            steps {
+                script{
+                    sh '''
+NAMESPACE=`cat namespace.properties`
+kubeConfig=`cat kubeConfig.properties`
+kubectl="docker run --rm --name kubectl -v ${WORKSPACE}:/tmp armdocker.rnd.ericsson.se/dockerhub-ericsson-remote/bitnami/kubectl:latest --kubeconfig=/tmp/.kube/${kubeConfig}"
+${kubectl} get pods -n ${NAMESPACE} | egrep -w 'msfm|mscm|mspm|msap|mskpirt|secserv|mscmce|mssnmpfm|mscmip|mspmip|pkiraserv|msapgfm|msnetlog|mscmapg'
+
+DATE=`date '+%Y-%m-%d-%H:%M:%S'`
+declare -a failure_list=()
+
+#####################################################
+#                    Logger                         #
+#####################################################
+
+logger() {
+    echo "`date '+%Y-%m-%d %H:%M:%S:'` $@"
+}
+
+#####################################################
+#             Check If Pod Restarted                #
+#####################################################
+
+check_Pod_Restarted() {
+    pod_name=$1
+    ready=`${kubectl} get pods -n ${NAMESPACE} | grep $pod_name | awk '{print $2}'`
+    if [ -z "$ready" ]; then
+        return 1
+    fi
+    old_IFS=$IFS
+    IFS='/'
+    read -a array <<<"$ready"
+    IFS=$old_IFS
+    if [[ ${array[0]} == ${array[1]} ]];
+    then
+        return 0
+    else
+        return 1
+    fi
+}
+
+#####################################################
+#            Restart Mediation Pods                 #
+#####################################################
+
+restart_Pods(){
+    argument_pods=("$@")
+    declare -a pods_list=()
+    #This loop iters over the list of pods from argument_pods and creates pods_list which has /opt/ericsson/ERICcredentialmanagercli directory in it
+    for pod in "${argument_pods[@]}"
+    do
+       pod_name=`${kubectl} get pods -n ${NAMESPACE} | grep $pod | grep "Running" | awk '{print $1}'`
+       if [[ "$pod_name" == "$pod" ]]; then
+          isDirectoryPresent=`${kubectl} exec $pod -n ${NAMESPACE} ls /opt/ericsson/| grep "ERICcredentialmanagercli" || echo "NoDirectory"`
+          requiredDirectory="ERICcredentialmanagercli"
+          if [[ "$isDirectoryPresent" == "$requiredDirectory" ]]; then
+             pods_list+=("$pod")
+             echo ${pods_list[*]}
+             elif [[ "$isDirectoryPresent" == "NoDirectory" ]]; then
+             echo "$pod doesn't have opt/ericsson/ERICcredentialmanagercli directory"
+           fi
+       else
+           echo "$pod not running in kubernetes list. Restart is handled directly by k8s"
+       fi
+    done
+        echo "Displaying the list of pods which have /opt/ericsson/ERICcredentialmanagercli:${pods_list[*]} "
+    declare -a restart_count_array=()
+    declare -a flag_array_to_know_restarted_pods=()
+    for pod in "${pods_list[@]}"
+    do
+        pod_restart_count=`${kubectl} get pods -n ${NAMESPACE} | grep $pod | awk '{print $4}'`
+        pod_restart_count=$(($pod_restart_count + 0))
+        restart_count_array+=("$pod_restart_count")
+        flag_array_to_know_restarted_pods+=(0)
+        `${kubectl} exec -it $pod -n ${NAMESPACE} touch /opt/ericsson/ERICcredentialmanagercli/.state &>/dev/null`
+    done
+    logger "Checking weather pods are restarted or not"
+    loop_count=0
+    while [ $loop_count -lt 30 ]
+    do
+        sleep 30
+        index=0
+        while [ $index -lt ${#pods_list[@]} ]
+        do
+            if [[ ${flag_array_to_know_restarted_pods[$index]} == 0 ]];
+            then
+                restart_count=`${kubectl} get pods -n ${NAMESPACE} |grep ${pods_list[$index]} | awk '{print $4}'`
+                 if [ -z "$restart_count" ]; then
+                    logger "Pod ${pods_list[$index]} already restarted by k8s"
+                    flag_array_to_know_restarted_pods[$index]=1
+                else
+                    restart_count_1=$((${restart_count}-1))
+                    if [[ $restart_count_1 == ${restart_count_array[$index]} ]];
+                    then
+                        if check_Pod_Restarted ${pods_list[$index]};
+                        then
+                            logger "Pod ${pods_list[$index]} restarted successfully"
+                            flag_array_to_know_restarted_pods[$index]=1
+                        else
+                            logger "Waiting for all container to come up and running for pod ${pods_list[$index]}"
+                        fi
+                    else
+                        logger "Pod ${pods_list[$index]} isn't restarted yet"
+                    fi
+                fi
+            fi
+            ((index=index+1))
+        done
+        already_restarted_pods_count=0
+        for element in "${flag_array_to_know_restarted_pods[@]}"
+        do
+            if [[ $element == 1 ]];
+            then
+                ((already_restarted_pods_count = already_restarted_pods_count + 1))
+            fi
+        done
+        if [[ $already_restarted_pods_count == ${#pods_list[@]} ]];
+        then
+            break
+        fi
+        ((loop_count=loop_count + 1))
+    done
+    index=0
+    while [ $index -lt ${#pods_list[@]} ]
+    do
+        if [[ ${flag_array_to_know_restarted_pods[$index]} == 0 ]];
+        then
+            failure_list+=("${pods_list[$index]}")
+        fi
+        ((index=index+1))
+    done
+}
+
+#####################################################
+#                      Main                         #
+#####################################################
+
+main()
+{
+    declare -a mediation_pods_batch_1=()
+    declare -a mediation_pods_batch_2=()
+    mediation_service_group_array=( mscmce- mscm- mscmip- mssnmpfm- msfm- mspm- mspmip- msap- mskpirt- secserv- pkiraserv- msapgfm- msnetlog- mscmapg-)
+    logger "Starting to split mediation pods into batches"
+    for mediation_pod in "${mediation_service_group_array[@]}"
+    do
+        mediation_list=`${kubectl} get pods -n ${NAMESPACE} | grep $mediation_pod | awk '{print $1}'`
+        flag=0
+        for pod in $mediation_list
+        do
+            if [[ $flag == 0 ]];
+            then
+                mediation_pods_batch_1+=("$pod")
+                flag=1
+            else
+                mediation_pods_batch_2+=("$pod")
+            fi
+        done
+    done
+    logger "Pods in mediation batch 1 are: "
+    logger "${mediation_pods_batch_1[@]}"
+    logger "Pods in mediation batch 2 are: "
+    logger "${mediation_pods_batch_2[@]}"
+    logger "Finished spliting mediation pods into batches"
+    if [[ ${#mediation_pods_batch_1[@]} -gt 0 ]];
+    then
+        logger "Starting batch 1 pods restarts"
+        restart_Pods "${mediation_pods_batch_1[@]}"
+        logger "Batch 1 pods restarted"
+    fi
+    if [[ ${#mediation_pods_batch_2[@]} -gt 0 ]];
+    then
+        logger "Starting batch 2 pods restarts"
+        restart_Pods "${mediation_pods_batch_2[@]}"
+        logger "Batch 2 pods restarted"
+    fi
+}
+
+#####################################################
+#              Script Start Point                   #
+#####################################################
+
+logger "Starting mediation restart."
+
+if [ "${NAMESPACE}" == "" ]; then
+    logger "Invalid Namespace"
+    exit 1
+fi
+
+if [[ "${NAMESPACE}" =~ [A-Z] ]] || [ "${NAMESPACE}" = "" ] ; then
+    logger "Value used for name-space is invalid. The name space can not contain upper case letters or underscores or be empty."
+    exit 1
+fi
+
+main
+for pod in "${failure_list[@]}"
+do
+    logger "Pod ${pod} restart failed"
+done
+logger ""
+
+if [ "${#failure_list[@]}" -eq 0 ]; then
+    logger "Script Execution Completed."
+else
+    logger "Script Execution Failed."
+    exit 1
+fi
+${kubectl} get pods -n ${NAMESPACE} | egrep -w 'msfm|mscm|mspm|msap|mskpirt|secserv|mscmce|mssnmpfm|mscmip|mspmip|pkiraserv|msapgfm|msnetlog|mscmapg'
+                    '''
+                }
+            }
+        }
+    }
+}

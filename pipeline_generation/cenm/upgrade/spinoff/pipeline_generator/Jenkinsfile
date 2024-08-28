@@ -1,0 +1,105 @@
+def returnParametersForDsl() {
+    return [REGULAR_SLAVES: env.REGULAR_SLAVES, TE_DOCKER_SLAVES: env.TE_DOCKER_SLAVES, OPENSTACK_SLAVES: env.OPENSTACK_SLAVES, TEAM_EMAIL: env.TEAM_EMAIL, PERMISSION_GROUPS: env.PERMISSION_GROUPS]
+}
+
+def returnListOfCenmUpgradeJobs() {
+    def listOfCenmUpgradeJobs = []
+
+    // === cENM Docker Registry Cleanup  ===
+    listOfCenmUpgradeJobs = listOfCenmUpgradeJobs.plus('DSL/seedchildjobs/cenmdockerregistrycleanup/CenmDockerRegistryCleanUp.groovy')
+
+    // === UG Deploy ===
+    listOfCenmUpgradeJobs = listOfCenmUpgradeJobs.plus('DSL/seedpipelines/cenm/upgrade/spinoff/cenmupgrade/CenmUpgrade.groovy')
+    listOfCenmUpgradeJobs = listOfCenmUpgradeJobs.plus('DSL/seedchildjobs/cenmaduflow/CenmAduFlow.groovy')
+
+    // === Retrieve ENM Product Set Version ===
+    listOfCenmUpgradeJobs = listOfCenmUpgradeJobs.plus('DSL/seedchildjobs/retrieveenmproductsetversion/RetrieveEnmProductSetVersion.groovy')
+
+    // === UG Deployment Setup ===
+    listOfCenmUpgradeJobs = listOfCenmUpgradeJobs.plus('DSL/seedpipelines/cenm/upgrade/spinoff/cenmupgradedeploymentsetup/CenmUpgradeDeploymentSetup.groovy')
+    listOfCenmUpgradeJobs = listOfCenmUpgradeJobs.plus('DSL/seedchildjobs/copyutilsrepotowlvm/CenmCopyUtilsRepoToWlvm.groovy')
+    listOfCenmUpgradeJobs = listOfCenmUpgradeJobs.plus('DSL/seedchildjobs/ddcsetup/CenmDdcSetup.groovy')
+    listOfCenmUpgradeJobs = listOfCenmUpgradeJobs.plus('DSL/seedchildjobs/cenmdeploytorutilitiesinternal/CenmDeployTorUtilitiesInternal.groovy')
+    listOfCenmUpgradeJobs = listOfCenmUpgradeJobs.plus('DSL/seedchildjobs/deploynsstestwareutilities/CenmDeployNssTestwareUtilities.groovy')
+
+    // === UG Functional Acceptance Tests ===
+    listOfCenmUpgradeJobs = listOfCenmUpgradeJobs.plus('DSL/seedpipelines/cenm/upgrade/spinoff/cenmupgradefunctionalacceptancetests/CenmUpgradeFunctionalAcceptanceTests.groovy')
+    listOfCenmUpgradeJobs = listOfCenmUpgradeJobs.plus('DSL/seedchildjobs/rfa250/CenmRfa250.groovy')
+
+    // === Retrieve RFA250 URL ===
+    listOfCenmUpgradeJobs = listOfCenmUpgradeJobs.plus('DSL/seedchildjobs/cenmupgraderetrieveallureurlfromrfa250job/CenmUpgradeRetrieveAllureUrlFromRfa250Job.groovy')
+
+    // === UG Post Acceptance Tests ===
+    listOfCenmUpgradeJobs = listOfCenmUpgradeJobs.plus('DSL/seedpipelines/cenm/upgrade/spinoff/cenmupgradepostfunctionalacceptancetests/CenmUpgradePostFunctionalAcceptanceTests.groovy')
+    listOfCenmUpgradeJobs = listOfCenmUpgradeJobs.plus('DSL/seedchildjobs/rfa250cleanup/CenmRfa250Cleanup.groovy')
+    listOfCenmUpgradeJobs = listOfCenmUpgradeJobs.plus('DSL/seedchildjobs/rfa250rerunner/CenmRfa250Rerunner.groovy')
+
+    // === UG Non Functional Flow jobs ===
+    listOfCenmUpgradeJobs = listOfCenmUpgradeJobs.plus('DSL/seedpipelines/cenm/upgrade/spinoff/cenmupgradenonfunctionaltestupgradeassertions/CenmUpgradeNonFunctionalTestUpgradeAssertions.groovy')
+    listOfCenmUpgradeJobs = listOfCenmUpgradeJobs.plus('DSL/seedpipelines/cenm/upgrade/spinoff/cenmupgradenonfunctionaldeploymentsetup/CenmUpgradeNonFunctionalDeploymentSetup.groovy')
+
+    // === UG Standalone Jobs ===
+    listOfCenmUpgradeJobs = listOfCenmUpgradeJobs.plus('DSL/seedchildjobs/rfarerunanysuite/CenmRfaRerunAnySuite.groovy')
+
+    // === UG Updater ===
+    listOfCenmUpgradeJobs = listOfCenmUpgradeJobs.plus('pipeline_generation/cenm/upgrade/spinoff/DSL/cenmupgradepipelineupdater/CenmUpgradePipelineUpdater.groovy')
+
+
+    return listOfCenmUpgradeJobs
+}
+
+pipeline {
+    agent {
+        node {
+            label OPENSTACK_SLAVES
+        }
+    }
+
+    environment {
+        DSL_CLASSPATH = 'DSL'
+    }
+
+    stages {
+        stage ('Validate required parameters set') {
+            when {
+                anyOf {
+                    expression {
+                        env.REGULAR_SLAVES == null
+                    }
+                    expression {
+                        env.TE_DOCKER_SLAVES == null
+                    }
+                    expression {
+                        env.OPENSTACK_SLAVES == null
+                    }
+                    expression {
+                        env.TEAM_EMAIL == null
+                    }
+                }
+            }
+            steps {
+                error('Some required parameter(s) not set. Please supply a value for all required parameters')
+            }
+        }
+        stage ('Default PERMISSION_GROUPS if null') {
+            when {
+                expression {
+                    env.PERMISSION_GROUPS == null
+                }
+            }
+            steps {
+                script {
+                    env.PERMISSION_GROUPS = 'authenticated'
+                }
+            }
+        }
+
+        stage('Generate cENM Upgrade Pipeline Jobs') {
+            steps {
+                jobDsl targets: returnListOfCenmUpgradeJobs().join('\n'),
+                    additionalParameters: returnParametersForDsl(),
+                    additionalClasspath: env.DSL_CLASSPATH
+            }
+        }
+    }
+}

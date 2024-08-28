@@ -1,0 +1,853 @@
+{
+  "application": "APPLICATION_NAME",
+  "disabled": false,
+  "keepWaitingPipelines": true,
+  "name": "PIPELINE_NAME",
+  "notifications": [
+    {
+      "address": "BumbleBee.ENM@tcs.com",
+      "cc": "",
+      "level": "pipeline",
+      "type": "email",
+      "when": [
+        "pipeline.failed"
+      ]
+    }
+  ],
+  "parameterConfig": [
+    {
+      "default": "",
+      "description": "",
+      "hasOptions": false,
+      "label": "",
+      "name": "environment_name",
+      "options": [
+        {
+          "value": ""
+        }
+      ],
+      "pinned": false,
+      "required": true
+    },
+    {
+      "default": "False",
+      "description": "",
+      "hasOptions": true,
+      "label": "",
+      "name": "Trigger_Health_Check",
+      "options": [
+        {
+          "value": "True"
+        },
+        {
+          "value": "False"
+        }
+      ],
+      "pinned": false,
+      "required": true
+    },
+    {
+      "default": "csar",
+      "description": "",
+      "hasOptions": true,
+      "label": "",
+      "name": "deployment_mechanism",
+      "options": [
+        {
+          "value": "csar"
+        },
+        {
+          "value": "charts"
+        }
+      ],
+      "pinned": false,
+      "required": true
+    },
+    {
+      "default": "eric-enm-integration-production-values",
+      "description": "NOTE : CSAR supports only eric-enm-integration-production-values and eric-enm-integration-extra-large-production-values.",
+      "hasOptions": true,
+      "label": "",
+      "name": "integration_value_type",
+      "options": [
+        {
+          "value": "eric-enm-integration-production-values"
+        },
+        {
+          "value": "eric-enm-integration-extra-large-production-values"
+        },
+        {
+          "value": "eric-enm-multi-instance-functional-integration-values"
+        },
+        {
+          "value": "eric-enm-single-instance-production-integration-values"
+        },
+        {
+          "value": "eric-enm-integration-functional-test-values"
+        },
+        {
+          "value": "eric-enm-integration-openstack-core-values"
+        }
+      ],
+      "pinned": false,
+      "required": true
+    },
+    {
+      "default": "${trigger.properties['product_set_version'] ?: ''}",
+      "description": "",
+      "hasOptions": false,
+      "label": "",
+      "name": "cenm_product_set_version",
+      "options": [
+        {
+          "value": ""
+        }
+      ],
+      "pinned": false,
+      "required": true
+    },
+    {
+      "default": "",
+      "description": "",
+      "hasOptions": false,
+      "label": "",
+      "name": "drop",
+      "options": [
+        {
+          "value": ""
+        }
+      ],
+      "pinned": false,
+      "required": true
+    },
+    {
+      "default": "MAPPED",
+      "description": "",
+      "hasOptions": false,
+      "label": "",
+      "name": "tor_utils_version",
+      "options": [
+        {
+          "value": "INSTALLED"
+        },
+        {
+          "value": "NOT_REQUIRED"
+        },
+        {
+          "value": "LATEST"
+        }
+      ],
+      "pinned": false,
+      "required": true
+    },
+    {
+      "default": "MAPPED",
+      "description": "",
+      "hasOptions": false,
+      "label": "",
+      "name": "nss_utils_version",
+      "options": [
+        {
+          "value": ""
+        }
+      ],
+      "pinned": false,
+      "required": true
+    },
+    {
+      "default": "RVB",
+      "description": "",
+      "hasOptions": false,
+      "label": "",
+      "name": "test_phase",
+      "options": [
+        {
+          "value": ""
+        }
+      ],
+      "pinned": false,
+      "required": true
+    },
+    {
+      "default": "MAPPED",
+      "description": "",
+      "hasOptions": false,
+      "label": "",
+      "name": "apt_version",
+      "options": [
+        {
+          "value": ""
+        }
+      ],
+      "pinned": false,
+      "required": true
+    },
+    {
+      "default": "",
+      "description": "",
+      "hasOptions": false,
+      "label": "",
+      "name": "features_to_exclude",
+      "options": [
+        {
+          "value": ""
+        }
+      ],
+      "pinned": false,
+      "required": false
+    },
+    {
+      "default": "False",
+      "description": "",
+      "hasOptions": true,
+      "label": "",
+      "name": "trigger_adu",
+      "options": [
+        {
+          "value": "True"
+        },
+        {
+          "value": "False"
+        }
+      ],
+      "pinned": false,
+      "required": true
+    },
+    {
+      "default": "RELEASE",
+      "description": "",
+      "hasOptions": false,
+      "label": "",
+      "name": "mt_utils_version",
+      "options": [
+        {
+          "value": ""
+        }
+      ],
+      "pinned": false,
+      "required": true
+    },
+    {
+      "default": "MAPPED",
+      "description": "",
+      "hasOptions": false,
+      "label": "",
+      "name": "adu_version",
+      "options": [
+        {
+          "value": ""
+        }
+      ],
+      "pinned": false,
+      "required": true
+    },
+    {
+      "default": "LATEST",
+      "description": "",
+      "hasOptions": false,
+      "label": "",
+      "name": "availability_watcher_version",
+      "options": [
+        {
+          "value": ""
+        }
+      ],
+      "pinned": false,
+      "required": true
+    },
+    {
+      "default": "AUTO",
+      "description": "",
+      "hasOptions": false,
+      "label": "",
+      "name": "taf_version",
+      "options": [
+        {
+          "value": ""
+        }
+      ],
+      "pinned": false,
+      "required": true
+    },
+    {
+      "default": "",
+      "description": "NOTE: If deployment_mechanism is csar and parameter value is empty,value is being fetched from the Config Map",
+      "hasOptions": false,
+      "label": "",
+      "name": "backup_name",
+      "options": [
+        {
+          "value": ""
+        }
+      ],
+      "pinned": false,
+      "required": false
+    },
+    {
+      "default": "ci_internal",
+      "description": "",
+      "hasOptions": true,
+      "label": "",
+      "name": "stage_area",
+      "options": [
+        {
+          "value": "ci_internal"
+        },
+        {
+          "value": "drop"
+        }
+      ],
+      "pinned": false,
+      "required": true
+    },
+    {
+      "default": "false",
+      "description": "Select true if the environment is running with robustness load",
+      "hasOptions": true,
+      "label": "",
+      "name": "is_environment_running_robustness_load",
+      "options": [
+        {
+          "value": "false"
+        },
+        {
+          "value": "true"
+        }
+      ],
+      "pinned": false,
+      "required": true
+    },
+    {
+      "default": "CBRS",
+      "description": "",
+      "hasOptions": false,
+      "label": "",
+      "name": "restrict_to_features",
+      "options": [
+        {
+          "value": ""
+        }
+      ],
+      "pinned": false,
+      "required": false
+    },
+    {
+      "default": "CBRS",
+      "description": "",
+      "hasOptions": false,
+      "label": "",
+      "name": "jenkins_tag",
+      "options": [
+        {
+          "value": ""
+        }
+      ],
+      "pinned": false,
+      "required": false
+    },
+    {
+      "default": "assertions_default_config.cfg",
+      "description": "",
+      "hasOptions": false,
+      "label": "",
+      "name": "apt_config_filename",
+      "options": [
+        {
+          "value": ""
+        }
+      ],
+      "pinned": false,
+      "required": false
+    },
+    {
+      "default": "RELEASE",
+      "description": "",
+      "hasOptions": false,
+      "label": "",
+      "name": "apt_utils_version",
+      "options": [
+        {
+          "value": ""
+        }
+      ],
+      "pinned": false,
+      "required": false
+    },
+    {
+      "default": "true",
+      "description": "",
+      "hasOptions": false,
+      "label": "",
+      "name": "exclude_upgrade",
+      "options": [
+        {
+          "value": ""
+        }
+      ],
+      "pinned": false,
+      "required": false
+    },
+    {
+      "default": "false",
+      "description": "",
+      "hasOptions": true,
+      "label": "",
+      "name": "is_network_type_STC",
+      "options": [
+        {
+          "value": "false"
+        },
+        {
+          "value": "true"
+        }
+      ],
+      "pinned": false,
+      "required": true
+    },
+    {
+      "default": "Internal",
+      "description": "",
+      "hasOptions": true,
+      "label": "",
+      "name": "BRO_DEFAULT_BACKUP_TYPE",
+      "options": [
+        {
+          "value": "External"
+        },
+        {
+          "value": "Internal"
+        }
+      ],
+      "pinned": false,
+      "required": true
+    },
+    {
+      "default": "infra",
+      "description": "This parameter is used to give the ability to the operator to specify whether he wants to run the pipeline with just infra or infra_apps",
+      "hasOptions": true,
+      "label": "",
+      "name": "adu_coverage_selector",
+      "options": [
+        {
+          "value": "infra"
+        },
+        {
+          "value": "infra_apps"
+        }
+      ],
+      "pinned": false,
+      "required": true
+    },
+    {
+      "default": "false",
+      "description": "This parameter is used to give the ability to the operator to specify whether he/she wants to run the pipeline with CBRS SADC Upgrade",
+      "hasOptions": true,
+      "label": "",
+      "name": "Trigger_CBRS_SADC_Upgrade",
+      "options": [
+        {
+          "value": "true"
+        },
+        {
+          "value": "false"
+        }
+      ],
+      "pinned": false,
+      "required": true
+    },
+    {
+      "default": "drop",
+      "description": "Leave empty for latest drop version. CSAR version e.g.: 0.108.0-9, drop, release, build",
+      "hasOptions": false,
+      "label": "",
+      "name": "CSAR_VERSION",
+      "options": [
+        {
+          "value": ""
+        }
+      ],
+      "pinned": false,
+      "required": false
+    },
+    {
+      "default": "cbrs",
+      "description": "Provide namespace for upgrade (default will be cbrs)",
+      "hasOptions": false,
+      "label": "",
+      "name": "NAMESPACE",
+      "options": [
+        {
+          "value": ""
+        }
+      ],
+      "pinned": false,
+      "required": false
+    }
+  ],
+  "spelEvaluator": "v4",
+  "stages": [
+    {
+      "continuePipeline": false,
+      "failPipeline": true,
+      "job": "cENM_Retrieve_Latest_Green_cENM_Product_Set_Version",
+      "master": "FEM_CONTROLLER",
+      "name": "MTV_cENM_Retrieve_Latest_Green_cENM_Product_Set_Version",
+      "parameters": {
+        "mt_utils_version": "${parameters['mt_utils_version']}",
+        "cluster_id": "${parameters['environment_name']}",
+        "cenm_product_set_version": "${parameters['cenm_product_set_version']}",
+        "deployment_mechanism": "${parameters['deployment_mechanism']}",
+        "drop": "${parameters['drop']}"
+      },
+      "propertyFile": "artifact.properties",
+      "refId": "1",
+      "requisiteStageRefIds": [
+        "14"
+      ],
+      "stageTimeoutMs": 36000000,
+      "type": "jenkins"
+    },
+    {
+      "continuePipeline": false,
+      "failPipeline": true,
+      "job": "cENM_Determine_Bur_Hook_Automation",
+      "master": "FEM_CONTROLLER",
+      "name": "MTV_cENM_Determine_Bur_Hook_Automation",
+      "parameters": {
+        "mt_utils_version": "${parameters['mt_utils_version']}",
+        "cluster_id": "${parameters['environment_name']}",
+        "cenm_product_set_version": "${#stage('MTV_cENM_Retrieve_Latest_Green_cENM_Product_Set_Version')['context']['cenm_product_set_version'] ?: parameters['cenm_product_set_version']}"
+      },
+      "propertyFile": "artifact.properties",
+      "refId": "2",
+      "requisiteStageRefIds": [
+        "1"
+      ],
+      "stageTimeoutMs": 36000000,
+      "type": "jenkins"
+    },
+    {
+      "continuePipeline": false,
+      "failPipeline": true,
+      "job": "cENM_Retrieve_Product_Set_Version_From_Config_Map",
+      "master": "FEM_CONTROLLER",
+      "name": "MTV_cENM_Retrieve_Product_Set_Version_From_Config_Map",
+      "parameters": {
+        "mt_utils_version": "${parameters['mt_utils_version']}",
+        "cluster_id": "${parameters['environment_name']}",
+        "deployment_mechanism": "${parameters['deployment_mechanism']}",
+        "backup_name": "${parameters['backup_name']}"
+      },
+      "propertyFile": "artifact.properties",
+      "refId": "3",
+      "requisiteStageRefIds": [
+        "2"
+      ],
+      "stageTimeoutMs": 36000000,
+      "type": "jenkins"
+    },
+    {
+      "continuePipeline": false,
+      "failPipeline": true,
+      "job": "cENM_Rollback_Backup_Flow",
+      "master": "FEM_CONTROLLER",
+      "name": "cENM_Rollback_Backup_Flow",
+      "parameters": {
+        "backup_name": "${#stage('MTV_cENM_Retrieve_Product_Set_Version_From_Config_Map')['context']['backup_name']}",
+        "mt_utils_version": "${parameters['mt_utils_version']}",
+        "cenm_product_set_version": "${#stage('MTV_cENM_Retrieve_Product_Set_Version_From_Config_Map')['context']['cenm_product_set_version_installed'] ?: parameters['cenm_product_set_version']}",
+        "cluster_id": "${parameters['environment_name']}",
+        "drop": "${#stage('MTV_cENM_Retrieve_Product_Set_Version_From_Config_Map')['context']['drop'] ?: parameters['drop']}",
+        "deployment_mechanism": "${parameters['deployment_mechanism']}",
+        "BRO_DEFAULT_BACKUP_TYPE": "${parameters['BRO_DEFAULT_BACKUP_TYPE']}",
+        "is_network_type_STC": "${parameters['is_network_type_STC']}"
+      },
+      "refId": "4",
+      "requisiteStageRefIds": [
+        "3"
+      ],
+      "stageEnabled": {
+        "expression": "${#stage('MTV_cENM_Determine_Bur_Hook_Automation')['context']['bur_hook_automation_flag']} == false",
+        "type": "expression"
+      },
+      "stageTimeoutMs": 36000000,
+      "type": "jenkins"
+    },
+    {
+      "continuePipeline": true,
+      "failPipeline": true,
+      "job": "cENM_Adu_Flow",
+      "master": "FEM_CONTROLLER",
+      "name": "MTV_cENM_Adu_Flow",
+      "parameters": {
+        "CCD_ADU_Duration_Selector": "0",
+        "adu_version": "${parameters['adu_version']}",
+        "availability_watcher_version": "${parameters['availability_watcher_version']}",
+        "cENM_Upgrade_Type": "ENM",
+        "cenm_product_set_version": "${#stage('MTV_cENM_Retrieve_Latest_Green_cENM_Product_Set_Version')['context']['cenm_product_set_version']}",
+        "cluster_id": "${parameters['environment_name']}",
+        "deployment_mechanism": "${parameters['deployment_mechanism']}",
+        "drop": "${#stage('MTV_cENM_Retrieve_Latest_Green_cENM_Product_Set_Version')['context']['drop']}",
+        "mt_utils_version": "${parameters['mt_utils_version']}",
+        "taf_version": "${parameters['taf_version']}",
+        "test_phase": "${parameters['test_phase']}",
+        "adu_coverage_selector":"${parameters['adu_coverage_selector']}"
+      },
+      "refId": "10",
+      "requisiteStageRefIds": [
+        "5"
+      ],
+      "stageEnabled": {
+        "expression": "trigger[\"parameters\"][\"trigger_adu\"] == \"True\"",
+        "type": "expression"
+      },
+      "stageTimeoutMs": 36000000,
+      "type": "jenkins"
+    },
+    {
+      "continuePipeline": true,
+      "failPipeline": false,
+      "job": "cENM_Docker_Registry_Cleanup",
+      "master": "FEM_CONTROLLER",
+      "name": "cENM_Docker_Registry_Cleanup",
+      "parameters": {
+        "cluster_id": "${parameters['environment_name']}",
+        "mt_utils_version": "${parameters['mt_utils_version']}",
+        "is_network_type_STC": "${parameters['is_network_type_STC']}",
+        "cenm_product_set_version": "${#stage('MTV_cENM_Retrieve_Product_Set_Version_From_Config_Map')['context']['cenm_product_set_version_installed'] ?: parameters['cenm_product_set_version']}"
+      },
+      "refId": "5",
+      "requisiteStageRefIds": [
+        "4"
+      ],
+      "restrictExecutionDuringTimeWindow": false,
+      "stageEnabled": {
+        "expression": "trigger[\"parameters\"][\"deployment_mechanism\"] == \"csar\"",
+        "type": "expression"
+      },
+      "stageTimeoutMs": 36000000,
+      "type": "jenkins"
+    },
+    {
+      "continuePipeline": false,
+      "failPipeline": true,
+      "job": "MTV_cENM_Upgrade_NonFunctional_Flow",
+      "master": "FEM_CONTROLLER",
+      "name": "MTV_cENM_Upgrade_Flow",
+      "parameters": {
+        "deployment_mechanism": "${parameters['deployment_mechanism']}",
+        "backup_name": "${#stage('MTV_cENM_Retrieve_Product_Set_Version_From_Config_Map')['context']['backup_name']}",
+        "cenm_product_set_version": "${#stage('MTV_cENM_Retrieve_Latest_Green_cENM_Product_Set_Version')['context']['cenm_product_set_version']}",
+        "cluster_id": "${parameters['environment_name']}",
+        "drop": "${#stage('MTV_cENM_Retrieve_Latest_Green_cENM_Product_Set_Version')['context']['drop']}",
+        "trigger_adu": "${parameters['trigger_adu']}",
+        "adu_version": "${parameters['adu_version']}",
+        "availability_watcher_version": "${parameters['availability_watcher_version']}",
+        "mt_utils_version": "${parameters['mt_utils_version']}",
+        "test_phase": "${parameters['test_phase']}",
+        "integration_value_type": "${parameters['integration_value_type']}",
+        "taf_version": "${parameters['taf_version']}",
+        "is_network_type_STC": "${parameters['is_network_type_STC']}"
+      },
+      "propertyFile": "artifact.properties",
+      "refId": "6",
+      "requisiteStageRefIds": [
+        "5"
+      ],
+      "stageTimeoutMs": 36000000,
+      "type": "jenkins"
+    },
+    {
+      "continuePipeline": false,
+      "failPipeline": true,
+      "job": "cENM_Retrieve_ENM_Product_Set_Version",
+      "master": "FEM_CONTROLLER",
+      "name": "MTV_cENM_Retrieve_ENM_Product_Set_Flow",
+      "parameters": {
+        "product_set_version": "${#stage('MTV_cENM_Retrieve_Latest_Green_cENM_Product_Set_Version')['context']['cenm_product_set_version']}",
+        "cluster_id": "${parameters['environment_name']}"
+      },
+      "propertyFile": "artifact.properties",
+      "refId": "7",
+      "requisiteStageRefIds": [
+        "6"
+      ],
+      "stageTimeoutMs": 36000000,
+      "type": "jenkins"
+    },
+    {
+      "continuePipeline": false,
+      "failPipeline": true,
+      "job": "MTV_cENM_Upgrade_Deployment_Setup_Flow",
+      "master": "FEM_CONTROLLER",
+      "name": "MTV_cENM_Deployment_Setup_Flow",
+      "parameters": {
+        "apt_version": "${parameters['apt_version']}",
+        "cluster_id": "${parameters['environment_name']}",
+        "drop": "${#stage('MTV_cENM_Retrieve_Latest_Green_cENM_Product_Set_Version')['context']['drop']}",
+        "end_time": "${#stage('MTV_cENM_Upgrade_Flow')['context']['end_time']}",
+        "nss_utils_version": "${parameters['nss_utils_version']}",
+        "product_set_version": "${#stage('MTV_cENM_Retrieve_ENM_Product_Set_Flow')['context']['enm_product_set_version']}",
+        "start_time": "${#stage('MTV_cENM_Upgrade_Flow')['context']['start_time']}",
+        "test_phase": "${parameters['test_phase']}",
+        "tor_utils_version": "${parameters['tor_utils_version']}",
+        "is_network_type_STC": "${parameters['is_network_type_STC']}"
+      },
+      "refId": "8",
+      "requisiteStageRefIds": [
+        "7"
+      ],
+      "stageTimeoutMs": 36000000,
+      "type": "jenkins"
+    },
+    {
+      "continuePipeline": false,
+      "failPipeline": true,
+      "job": "MTV_cENM_Test_Upgrade_Assertions_Flow",
+      "master": "FEM_CONTROLLER",
+      "name": "MTV_cENM_Test_Upgrade_Assertions_Flow",
+      "parameters": {
+        "cluster_id": "${parameters['environment_name']}",
+        "drop": "${#stage('MTV_cENM_Retrieve_Latest_Green_cENM_Product_Set_Version')['context']['drop']}",
+        "end_time": "${#stage('MTV_cENM_Upgrade_Flow')['context']['end_time']}",
+        "features_to_exclude": "${parameters['features_to_exclude']}",
+        "product_set_version": "${#stage('MTV_cENM_Retrieve_ENM_Product_Set_Flow')['context']['enm_product_set_version']}",
+        "start_time": "${#stage('MTV_cENM_Upgrade_Flow')['context']['start_time']}",
+        "test_phase": "${parameters['test_phase']}",
+        "is_network_type_STC": "${parameters['is_network_type_STC']}"
+      },
+      "propertyFile": "",
+      "refId": "9",
+      "requisiteStageRefIds": [
+        "8"
+      ],
+      "stageTimeoutMs": 36000000,
+      "type": "jenkins"
+    },
+    {
+      "continuePipeline": false,
+      "failPipeline": false,
+      "job": "CBRS-Upgrade",
+      "master": "CBRS_JOB_CONTROLLER",
+      "name": "CBRS_SADC_Upgrade_Flow",
+      "parameters": {
+        "CSAR_VERSION": "${parameters['CSAR_VERSION']}",
+        "NAMESPACE": "${parameters['NAMESPACE']}",
+        "ENVIRONMENT_NAME": "${parameters['environment_name']}"
+      },
+      "propertyFile": "timestamps.log",
+      "refId": "11",
+      "requisiteStageRefIds": [
+        "9"
+      ],
+      "stageEnabled": {
+        "expression": "trigger[\"parameters\"][\"Trigger_CBRS_SADC_Upgrade\"] == \"true\"",
+        "type": "expression"
+      },
+      "stageTimeoutMs": 36000000,
+      "type": "jenkins"
+    },
+    {
+      "continuePipeline": false,
+      "failPipeline": false,
+      "job": "cENM_Push_Data_To_DDP_Make_Tar",
+      "master": "FEM_CONTROLLER",
+      "name": "CBRS_SADC_DDP_Push_Flow",
+      "parameters": {
+        "cluster_id": "${parameters['environment_name']}",
+        "mt_utils_version": "${parameters['mt_utils_version']}",
+        "test_phase": "${parameters['test_phase']}",
+        "is_network_type_STC": "${parameters['is_network_type_STC']}"
+      },
+      "propertyFile": "",
+      "refId": "12",
+      "requisiteStageRefIds": [
+        "11"
+      ],
+      "stageEnabled": {
+        "expression": "trigger[\"parameters\"][\"Trigger_CBRS_SADC_Upgrade\"] == \"true\"",
+        "type": "expression"
+      },
+      "stageTimeoutMs": 36000000,
+      "type": "jenkins"
+    },
+    {
+      "continuePipeline": false,
+      "failPipeline": false,
+      "job": "MTV_Run_Workload_Assertions",
+      "master": "FEM_CONTROLLER",
+      "name": "CBRS_SADC_Assertions",
+      "parameters": {
+        "cluster_id": "${parameters['environment_name']}",
+        "test_phase": "${parameters['test_phase']}",
+        "is_environment_running_robustness_load": "${parameters['is_environment_running_robustness_load']}",
+        "mt_utils_version": "${parameters['mt_utils_version']}",
+        "product_set_version": "${#stage('MTV_cENM_Retrieve_ENM_Product_Set_Flow')['context']['enm_product_set_version']}",
+        "drop": "${#stage('MTV_cENM_Retrieve_Latest_Green_cENM_Product_Set_Version')['context']['drop']}",
+        "features_to_exclude": "${parameters['features_to_exclude']}",
+        "restrict_to_features": "${parameters['restrict_to_features']}",
+        "jenkins_tag": "${parameters['jenkins_tag']}",
+        "apt_config_filename": "${parameters['apt_config_filename']}",
+        "apt_utils_version": "${parameters['apt_utils_version']}",
+        "exclude_upgrade": "${parameters['exclude_upgrade']}",
+        "start_time": "${#stage('CBRS_SADC_Upgrade_Flow')['context']['start_time']}"
+      },
+      "propertyFile": "",
+      "refId": "13",
+      "requisiteStageRefIds": [
+        "12"
+      ],
+      "stageEnabled": {
+        "expression": "trigger[\"parameters\"][\"Trigger_CBRS_SADC_Upgrade\"] == \"true\"",
+        "type": "expression"
+      },
+      "stageTimeoutMs": 36000000,
+      "type": "jenkins"
+    },
+    {
+      "continuePipeline": false,
+      "failPipeline": true,
+      "job": "cENM_UG_SHC",
+      "master": "FEM_CONTROLLER",
+      "name": "PRE_UG_cENM_Cluster_Heath_Checks",
+      "parameters": {
+        "deployment": "${parameters['environment_name']}"
+      },
+      "refId": "14",
+      "requisiteStageRefIds": [],
+      "stageEnabled": {
+        "expression": "trigger[\"parameters\"][\"Trigger_Health_Check\"] == \"True\"",
+        "type": "expression"
+      },
+      "stageTimeoutMs": 36000000,
+      "type": "jenkins"
+    },
+    {
+      "continuePipeline": true,
+      "failPipeline": false,
+      "job": "cENM_UG_SHC",
+      "master": "FEM_CONTROLLER",
+      "name": "POST_UG_cENM_Cluster_Heath_Checks",
+      "parameters": {
+        "deployment": "${parameters['environment_name']}"
+      },
+      "refId": "15",
+      "requisiteStageRefIds": [
+        "13"
+      ],
+      "stageEnabled": {
+        "expression": "trigger[\"parameters\"][\"Trigger_Health_Check\"] == \"True\"",
+        "type": "expression"
+      },
+      "stageTimeoutMs": 36000000,
+      "type": "jenkins"
+    }
+  ],
+  "triggers": [
+    {
+      "enabled": true,
+      "source": "fem_4s11_MTV_cENM_UG_Pipeline",
+      "type": "webhook"
+    }
+  ]
+}

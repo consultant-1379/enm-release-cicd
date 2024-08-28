@@ -1,0 +1,68 @@
+def returnParametersForDsl() {
+    return [TE_DOCKER_SLAVES: env.TE_DOCKER_SLAVES, OPENSTACK_SLAVES: env.OPENSTACK_SLAVES, TEAM_EMAIL: env.TEAM_EMAIL, PERMISSION_GROUPS: env.PERMISSION_GROUPS]
+}
+
+def returnListOfCenmCcdUpgradeJobs() {
+    def listOfCenmCcdUpgradeJobs = []
+
+    // === cENM CCD Upgrade Spinnaker Pipeline Standalone Job ===
+    listOfCenmCcdUpgradeJobs = listOfCenmCcdUpgradeJobs.plus('DSL/spinnakerpipeline/cenm/ccd_upgrade/SpinnakerCenmCcdPipelineUpgradeUpdater.groovy')
+
+    // === cENM CCD Upgrade Spinnaker Pipeline Updater ===
+    listOfCenmCcdUpgradeJobs = listOfCenmCcdUpgradeJobs.plus('pipeline_generation/spinnaker/ccd_upgrade/DSL/spinnakercenmccdupgradepipelineupdater/SpinnakerCenmCcdUpgradePipelineUpdater.groovy')
+
+    return listOfCenmCcdUpgradeJobs
+}
+
+pipeline {
+    agent {
+        node {
+            label OPENSTACK_SLAVES
+        }
+    }
+
+    environment {
+        DSL_CLASSPATH = 'DSL'
+    }
+
+    stages {
+        stage ('Validate required parameters set') {
+            when {
+                anyOf {
+                    expression {
+                        env.TE_DOCKER_SLAVES == null
+                    }
+                    expression {
+                        env.OPENSTACK_SLAVES == null
+                    }
+                    expression {
+                        env.TEAM_EMAIL == null
+                    }
+                }
+            }
+            steps {
+                error('Some required parameter(s) not set. Please supply a value for all required parameters')
+            }
+        }
+        stage ('Default PERMISSION_GROUPS if null') {
+            when {
+                expression {
+                    env.PERMISSION_GROUPS == null
+                }
+            }
+            steps {
+                script {
+                    env.PERMISSION_GROUPS = 'authenticated'
+                }
+            }
+        }
+
+        stage('Generate Spinnaker CCD Upgrade Pipeline Jobs') {
+            steps {
+                jobDsl targets: returnListOfCenmCcdUpgradeJobs().join('\n'),
+                    additionalParameters: returnParametersForDsl(),
+                    additionalClasspath: env.DSL_CLASSPATH
+            }
+        }
+    }
+}

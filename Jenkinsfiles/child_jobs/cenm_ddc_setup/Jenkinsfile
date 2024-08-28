@@ -1,0 +1,67 @@
+def commonMethods
+def SLAVE_FINAL = null
+
+node(SLAVE) {
+  stage('Determine Slave'){
+     if (env.is_network_type_STC == "true") {
+        SLAVE_FINAL = STC_SLAVE
+     } else {
+        SLAVE_FINAL = SLAVE
+     }
+   }
+}
+
+pipeline {
+    agent {
+        node {
+            label SLAVE_FINAL
+        }
+    }
+    environment {
+        deployment_type="cloud_native"
+    }
+    options {
+        timeout(120)
+        timestamps()
+    }
+    stages {
+        stage('Load common methods') {
+            steps {
+                script {
+                    commonMethods = load("${env.WORKSPACE}/Jenkinsfiles/common_methods/CommonMethods.groovy")
+                }
+            }
+        }
+
+        stage('Writing Parameters to parameters.properties') {
+            steps {
+                script {
+                    commonMethods.exportEnvVariablesToFile("parameters.properties")
+                }
+            }
+        }
+
+        stage('Set build name and description') {
+            steps {
+                script {
+                    currentBuild.displayName = "Setting up DDC on ${cluster_id}"
+                    currentBuild.description = "<b>Test Phase = ${test_phase}<br>MT Utils Version = ${mt_utils_version}</b>"
+                }
+            }
+        }
+
+        stage('Downloading MT Utils Pipeline Scripts') {
+            steps {
+                script {
+                    commonMethods.downloadMtUtils()
+                }
+            }
+        }
+
+        stage('Running Setup Script') {
+            steps{
+                sh "sh MTELoopScripts/pipeline_scripts/cenm_ddc_setup.sh ${WORKSPACE}/parameters.properties || exit 1"
+            }
+        }
+    }
+}

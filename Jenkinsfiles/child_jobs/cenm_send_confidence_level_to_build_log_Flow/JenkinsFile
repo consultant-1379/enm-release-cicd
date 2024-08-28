@@ -1,0 +1,150 @@
+def commonMethods
+
+pipeline {
+    agent {
+        node {
+            label SLAVE
+        }
+    }
+    options {
+        timestamps()
+    }
+    stages {
+        stage('Load common methods') {
+            steps {
+                script {
+                    commonMethods = load("${env.WORKSPACE}/Jenkinsfiles/common_methods/CommonMethods.groovy")
+                }
+            }
+        }
+
+        stage('Set build name and description') {
+            steps {
+                script {
+                    currentBuild.displayName = "Sending Confidence Level for ${to_ps}"
+                    currentBuild.description = "<b>Confidence Level Name = ${usecase}<br>Confidence Level Status = ${usecase_status}</b>"
+                }
+            }
+        }
+
+        stage('Downloading MT Utils Pipeline Scripts') {
+            steps {
+                script {
+                    commonMethods.downloadMtUtils()
+                }
+            }
+        }
+
+        stage('Writing Parameters to parameters.properties') {
+            steps {
+                script {
+                    commonMethods.exportEnvVariablesToFile("parameters.properties")
+                }
+            }
+        }
+
+        stage('Determine Usecase Status') {
+            steps {
+                script {
+                    sh '''
+                        function python() {
+                            python_command_to_run=("${@}")
+                            retrieve_image_version_to_use "enm_release_python27"
+                            docker run --rm --name mt-utils -u lciadm100 -v "$(pwd)":"/usr/src/app" armdocker.rnd.ericsson.se/proj_openstack_tooling/enm_release_python27:"${image_version_to_use}" python "${python_command_to_run[@]}"
+                        }
+
+                        function retrieve_image_version_to_use() {
+                            image_name="${1}"
+                            latest_repo_image_version=$(curl -s "https://gerrit-gamma.gic.ericsson.se/gitweb?p=OSS/com.ericsson.oss.ci.rtd/enm-release-containerization.git;a=blob_plain;f=VERSION")
+                            if [[ -z "${latest_repo_image_version}" ]]; then
+                                image_version_to_use="latest"
+                            else
+                                image_version_to_use="${latest_repo_image_version}"
+                                perform_image_cleanup "${image_name}"
+                            fi
+                        }
+
+                        function perform_image_cleanup() {
+                            image_name="${1}"
+                            current_image_version=$(docker image list | grep "${image_name}" | awk '{print $2}' | head -1)
+                            if [[ -n "${current_image_version}" ]] && [[ "${current_image_version}" != "${image_version_to_use}" ]]; then
+                                docker image rm -f "${image_name}" > /dev/null 2>&1
+                            fi
+                        }
+
+                        echo "Fetching Build Log ID"
+                        build_log_id=$(python MTELoopScripts/etc/pylibs/cenm_build_log_confidence_level_client.py --get_build_log -d "${drop}" -c "${usecase}" -tps "${to_ps}" -de "${deployment}")
+                        echo "Build Log ID is ${build_log_id}"
+                        working_directory=$(pwd)
+                        echo "Fetching Status of ADU, APTU, RFA"
+                        curl -4 -L https://ci-portal.seli.wh.rnd.internal.ericsson.com/api/cloudNative/getCNBuildLogData/drop/${drop}/ > buildLogContent.json
+                        aptu_status=$(docker run --rm -v ${working_directory}/buildLogContent.json:/tmp/buildLogContent.json armdocker.rnd.ericsson.se/dockerhub-ericsson-remote/pindar/jq -r ".[] | select(.id==$build_log_id) | .APTU.status__state" '/tmp/buildLogContent.json')
+                        adu_status=$(docker run --rm -v ${working_directory}/buildLogContent.json:/tmp/buildLogContent.json armdocker.rnd.ericsson.se/dockerhub-ericsson-remote/pindar/jq -r ".[] | select(.id==$build_log_id) | .ADU.status__state" '/tmp/buildLogContent.json')
+                        rfa_status=$(docker run --rm -v ${working_directory}/buildLogContent.json:/tmp/buildLogContent.json armdocker.rnd.ericsson.se/dockerhub-ericsson-remote/pindar/jq -r ".[] | select(.id==$build_log_id) | .RFA.status__state" '/tmp/buildLogContent.json')
+                        upgrade_status=$(docker run --rm -v ${working_directory}/buildLogContent.json:/tmp/buildLogContent.json armdocker.rnd.ericsson.se/dockerhub-ericsson-remote/pindar/jq -r ".[] | select(.id==$build_log_id) | .Upgrade.status__state" '/tmp/buildLogContent.json')
+                        upgrade_job_link=$(docker run --rm -v ${working_directory}/buildLogContent.json:/tmp/buildLogContent.json armdocker.rnd.ericsson.se/dockerhub-ericsson-remote/pindar/jq -r ".[] | select(.id==$build_log_id) | .Upgrade.buildJobLink" '/tmp/buildLogContent.json')
+                        echo "aptu_status is ${aptu_status}"
+                        echo "adu_status is ${adu_status}"
+                        echo "rfa_status is ${rfa_status}"
+
+                        if [[ ${aptu_status} == "passed" && ${adu_status} == "passed" && ${rfa_status} == "passed" ]]; then
+                            overall_status="passed"
+                        else
+                            overall_status="failed"
+                        fi
+                        echo "overall_status=${overall_status}" >> build.properties
+                        echo "upgrade_status=${upgrade_status}" >> build.properties
+                        echo "upgrade_job_link=${upgrade_job_link}" >> build.properties
+                    '''
+                }
+            }
+        }
+
+        stage('Inject environment variables') {
+            steps {
+                script {
+                    commonMethods.loadProperties("${WORKSPACE}/build.properties")
+                }
+            }
+        }
+
+        stage('Sending Confidence Level') {
+            steps{
+                setConfidenceLevelToSendToBuildLog(env.overall_status, env.upgrade_status, 'update', '', '');
+            }
+        }
+    }
+}
+
+def setConfidenceLevelToSendToBuildLog(overall_status, confidence_level_status, build_action, job_link, allure_link) {
+    script {
+        if (checkJobBuildable("cENM_Send_Confidence_Level_To_Build_Log")) {
+            def Cenm_Send_Confidence_Level_To_Build_Log = build(
+                job: "cENM_Send_Confidence_Level_To_Build_Log",
+                propagate: false,
+                wait: false,
+                parameters: [
+                    string(name: 'drop', value: env.drop),
+                    string(name: 'to_ps', value: env.to_ps),
+                    string(name: 'build_log_action', value: build_action),
+                    string(name: 'usecase_status', value: overall_status),
+                    string(name: 'deployment', value: env.deployment),
+                    string(name: 'test_phase', value: env.test_phase),
+                    string(name: 'usecase', value: 'cENM-Deploy-UG-Charts'),
+                    string(name: 'confidence_level', value: ''),
+                    string(name: 'job_link', value: upgrade_job_link ),
+                    string(name: 'status', value: confidence_level_status),
+                    string(name: 'timestamp', value: ''),
+                    string(name: 'mt_utils_version', value: env.mt_utils_version)
+                ]
+            )
+        } else {
+            echo "cENM_Send_Confidence_Level_To_Build_Log Job is disabled. So skipping"
+        }
+    }
+}
+
+def checkJobBuildable(jobName) {
+    def isBuildable = Jenkins.instance.getItem(jobName).isBuildable();
+    return isBuildable
+}

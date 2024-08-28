@@ -1,0 +1,105 @@
+def commonMethods
+def SLAVE_FINAL = null
+
+node(SLAVE) {
+  stage('Determine Slave'){
+     if (env.is_network_type_STC == "true") {
+        SLAVE_FINAL = STC_SLAVE
+     } else {
+        SLAVE_FINAL = SLAVE
+     }
+   }
+}
+
+pipeline {
+    agent {
+        node {
+            label SLAVE_FINAL
+        }
+    }
+    options {
+        timestamps()
+    }
+
+    stages {
+        stage('Load common methods') {
+            steps {
+                script {
+                    commonMethods = load("${env.WORKSPACE}/Jenkinsfiles/common_methods/CommonMethods.groovy")
+                }
+            }
+        }
+
+        stage('Set build name and description') {
+            steps {
+                script {
+                    currentBuild.displayName = "cENM docker registry Cleanup on ${cluster_id}"
+                }
+            }
+        }
+
+        stage('Writing Parameters to parameters.properties') {
+            steps {
+                script {
+                    commonMethods.exportEnvVariablesToFile("parameters.properties")
+                }
+            }
+        }
+
+        stage('Downloading MT Utils Pipeline Scripts') {
+            steps {
+                script {
+                    commonMethods.downloadMtUtils()
+                }
+            }
+        }
+
+        stage('Storing Job Details in Slave') {
+            steps {
+                script {
+                    def node_name = "${SLAVE_FINAL}"
+                    def date = new Date()
+                    sh " echo \" NODE_NAME : ${env.NODE_NAME} ; JOB_NAME : ${env.JOB_NAME} ; BUILD_NUMBER : ${env.BUILD_NUMBER} ; $date \" >> \"/home/lciadm100/jenkins/job_details.log\" "
+                }
+            }
+        }
+
+       stage('Execute EMT Deployment State Change Script') {
+            steps{
+                script {
+                    if (env.test_phase == 'RNL') {
+                       sh "MTELoopScripts/pipeline_scripts/emt/emt_deployment_state_change.sh ${WORKSPACE}/parameters.properties || exit 1"
+                    }
+                }
+            }
+        }
+
+        stage('Execute EMT Pipeline script') {
+            steps{
+              sh "MTELoopScripts/pipeline_scripts/emt/jenkins/intermediate_build_setup.sh ${WORKSPACE}/parameters.properties initial || exit 1"
+            }
+        }
+
+        stage('Docker Registry Clean up') {
+            steps {
+                sh "sh MTELoopScripts/pipeline_scripts/cenm_docker_registry_cleanup_setup.sh ${WORKSPACE}/parameters.properties || exit 1"
+            }
+        }
+
+        stage('Inject environment variables') {
+            steps {
+                script {
+                    commonMethods.loadProperties("${WORKSPACE}/build.properties")
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            script {
+                sh "MTELoopScripts/pipeline_scripts/emt/jenkins/intermediate_build_setup.sh ${WORKSPACE}/parameters.properties post_build || exit 1"
+            }
+        }
+    }
+}

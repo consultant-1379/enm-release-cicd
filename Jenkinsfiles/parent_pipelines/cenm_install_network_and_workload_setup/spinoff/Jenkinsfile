@@ -1,0 +1,307 @@
+import jenkins.model.*
+
+pipeline {
+
+    agent {
+        node {
+            label SLAVE
+        }
+    }
+
+    options {
+        timestamps()
+    }
+
+    stages {
+        stage('Set build name and description') {
+            steps {
+                script {
+                    currentBuild.displayName = "Network and Workload Setup on ${cluster_id}"
+                    currentBuild.description = "<b>MT Utils Version = ${mt_utils_version}<br>Add Nodes To ENM = ${nodes_to_add_to_enm}<br>Add Nodes To Workpool = ${nodes_to_add_to_workpool}<br>Workload Profiles = ${workload_profiles}</b>"
+                }
+            }
+        }
+
+        stage('cENM Send Confidence Level') {
+            steps {
+                setConfidenceLevelToSend('in_progress');
+            }
+        }
+
+        stage('Load common methods') {
+            steps {
+                script {
+                    commonMethods = load("${env.WORKSPACE}/Jenkinsfiles/common_methods/CommonMethods.groovy")
+                }
+            }
+        }
+
+        stage('Writing Parameters to parameters.properties') {
+            steps {
+                script {
+                    commonMethods.exportEnvVariablesToFile("parameters.properties")
+                }
+            }
+        }
+
+        stage('Downloading MT Utils Pipeline Scripts') {
+            steps {
+                script {
+                    commonMethods.downloadMtUtils()
+                }
+            }
+        }
+
+        stage('Storing Job Details in Slave') {
+            steps {
+                script {
+                    def node_name = "${SLAVE}"
+                    def date = new Date()
+                    sh " echo \" NODE_NAME : ${env.NODE_NAME} ; JOB_NAME : ${env.JOB_NAME} ; BUILD_NUMBER : ${env.BUILD_NUMBER} ; $date \" >> \"/home/lciadm100/jenkins/job_details.log\" "
+                }
+            }
+        }
+
+        stage('Execute EMT Pipeline script') {
+            steps{
+              sh "MTELoopScripts/pipeline_scripts/emt/jenkins/final_build_setup.sh ${WORKSPACE}/parameters.properties initial || exit 1"
+            }
+        }
+
+        stage('cENM Multi_NRM_Fetch_Network') {
+            steps {
+                script {
+                    if (checkJobBuildable("cENM_Multi_NRM_Fetch_Network")) {
+                        def Cenm_Fetch_Network = build(
+                            job: "cENM_Multi_NRM_Fetch_Network",
+                            propagate: true,
+                            wait: true,
+                            parameters: [
+                                string(name: 'cluster_id', value: env.cluster_id),
+                                string(name: 'product_set_version', value: env.product_set_version),
+                                string(name: 'mt_utils_version', value: env.mt_utils_version),
+                                string(name: 'force_arne_xml_creation', value: env.force_arne_xml_creation),
+                                string(name: 'multi_nrm', value: env.multi_nrm),
+                            ]
+                        )
+                    } else {
+                        echo "cENM_Multi_NRM_Fetch_Network Job is disabled. So skipping"
+                    }
+                }
+            }
+        }
+
+        stage('cENM Add Network') {
+            steps {
+                script {
+                    if (checkJobBuildable("cENM_Add_Network")) {
+                        def Cenm_Add_Network = build(
+                            job: "cENM_Add_Network",
+                            propagate: true,
+                            wait: true,
+                            parameters: [
+                                string(name: 'cluster_id', value: env.cluster_id),
+                                string(name: 'nodes_to_add_to_enm', value: env.nodes_to_add_to_enm),
+                                string(name: 'mt_utils_version', value: env.mt_utils_version),
+                                string(name: 'drop', value: env.drop),
+                            ]
+                        )
+                    } else {
+                        echo "cENM_Add_Network Job is disabled. So skipping"
+                    }
+                }
+            }
+        }
+
+        stage('cENM Manage And Supervise Network') {
+            steps {
+                script {
+                    if (checkJobBuildable("cENM_Manage_And_Supervise_Network")) {
+                        def Cenm_Manage_And_Supervise_Network = build(
+                            job: "cENM_Manage_And_Supervise_Network",
+                            propagate: true,
+                            wait: true,
+                            parameters: [
+                                string(name: 'cluster_id', value: env.cluster_id),
+                                string(name: 'supervision_types', value: env.supervision_types),
+                                string(name: 'mt_utils_version', value: env.mt_utils_version),
+                                string(name: 'test_phase', value: env.test_phase),
+                            ]
+                        )
+                    } else {
+                        echo "cENM_Manage_And_Supervise_Network Job is disabled. So skipping"
+                    }
+                }
+            }
+        }
+
+        stage('cENM Manage PM Function') {
+            steps {
+                script {
+                    if (checkJobBuildable("cENM_Manage_PM_Function")) {
+                        def Cenm_Manage_PM_Function = build(
+                            job: "cENM_Manage_PM_Function",
+                            propagate: true,
+                            wait: true,
+                            parameters: [
+                                string(name: 'test_phase', value: env.test_phase),
+                                string(name: 'cluster_id', value: env.cluster_id),
+                                string(name: 'supervision_types', value: env.supervision_types),
+                                string(name: 'mt_utils_version', value: env.mt_utils_version),
+                            ]
+                        )
+                    } else {
+                        echo "cENM_Manage_PM_Function Job is disabled. So skipping"
+                    }
+                }
+            }
+        }
+
+        stage('cENM Add Nodes To Workload Pool') {
+            steps {
+                script {
+                    if (checkJobBuildable("cENM_Add_Nodes_To_Workload_Pool")) {
+                        def Cenm_Add_Nodes_To_Workload_Pool = build(
+                            job: "cENM_Add_Nodes_To_Workload_Pool",
+                            propagate: true,
+                            wait: true,
+                            parameters: [
+                                string(name: 'cluster_id', value: env.cluster_id),
+                                string(name: 'nodes_to_add_to_workpool', value: env.nodes_to_add_to_workpool),
+                                string(name: 'mt_utils_version', value: env.mt_utils_version),
+                            ]
+                        )
+                    } else {
+                        echo "Cenm_Add_Nodes_To_Workload_Pool Job is disabled. So skipping"
+                    }
+                }
+            }
+        }
+
+        stage('cENM Apply Priority 1 Workload') {
+            steps {
+                script {
+                    if (checkJobBuildable("cENM_Apply_Priority_1_Workload")) {
+                        def Cenm_Apply_Priority_1_Workload = build(
+                            job: "cENM_Apply_Priority_1_Workload",
+                            propagate: false,
+                            wait: true,
+                            parameters: [
+                                string(name: 'test_phase', value: env.test_phase),
+                                string(name: 'cluster_id', value: env.cluster_id),
+                                string(name: 'workload_profiles', value: env.workload_profiles),
+                                string(name: 'mt_utils_version', value: env.mt_utils_version),
+                            ]
+                        )
+                    } else {
+                        echo "cENM_Apply_Priority_1_Workload Job is disabled. So skipping"
+                    }
+                }
+            }
+        }
+
+        stage('cENM Apply Priority 2 Workload') {
+            steps {
+                script {
+                    if (checkJobBuildable("cENM_Apply_Priority_2_Workload")) {
+                        def Cenm_Apply_Priority_2_Workload = build(
+                            job: "cENM_Apply_Priority_2_Workload",
+                            propagate: false,
+                            wait: true,
+                            parameters: [
+                                string(name: 'test_phase', value: env.test_phase),
+                                string(name: 'cluster_id', value: env.cluster_id),
+                                string(name: 'workload_profiles', value: env.workload_profiles),
+                                string(name: 'mt_utils_version', value: env.mt_utils_version),
+                            ]
+                        )
+                    } else {
+                        echo "cENM_Apply_Priority_2_Workload Job is disabled. So skipping"
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            setConfidenceLevelToSend('passed');
+            setConfidenceLevelToSendToBuildLog('passed', 'passed','final', '', '');
+        }
+        failure {
+            setConfidenceLevelToSend('failed');
+            setConfidenceLevelToSendToBuildLog('failed', 'failed','final', '', '');
+        }
+        aborted {
+            setConfidenceLevelToSend('failed');
+            setConfidenceLevelToSendToBuildLog('failed', 'failed','final', '', '');
+        }
+        always {
+            script {
+                sh "MTELoopScripts/pipeline_scripts/emt/jenkins/final_build_setup.sh ${WORKSPACE}/parameters.properties post_build || exit 1"
+            }
+        }
+    }
+}
+
+def setConfidenceLevelToSend(confidence_level_status) {
+    script {
+        if (env.send_confidence_level == 'YES') {
+            if (checkJobBuildable("cENM_Send_Confidence_Level")) {
+                if (env.deployment_mechanism == 'charts') {
+                    env.confidence_level_name = 'cENM-Deploy-II-Charts'
+                } else {
+                    env.confidence_level_name = 'cENM-Deploy-II-CSAR'
+                }
+                def Cenm_Send_Confidence_Level = build(
+                    job: "cENM_Send_Confidence_Level",
+                    propagate: false,
+                    wait: false,
+                    parameters: [
+                        string(name: 'product_set_version', value: env.cenm_product_set_version),
+                        string(name: 'confidence_level_name', value: env.confidence_level_name),
+                        string(name: 'confidence_level_status', value: confidence_level_status),
+                        string(name: 'mt_utils_version', value: env.mt_utils_version),
+                    ]
+                )
+            } else {
+                echo "cENM_Send_Confidence_Level Job is disabled. So skipping"
+            }
+        }
+    }
+}
+
+def setConfidenceLevelToSendToBuildLog(overall_status, confidence_level_status, build_action, job_link, allure_link) {
+    script {
+        if (env.publish_to_buildlog == 'YES' && env.is_dit_versioning_applied == 'True') {
+            if (checkJobBuildable("cENM_Send_Confidence_Level_To_Build_Log")) {
+                def Cenm_Send_Confidence_Level_To_Build_Log = build(
+                    job: "cENM_Send_Confidence_Level_To_Build_Log",
+                    propagate: false,
+                    wait: false,
+                    parameters: [
+                        string(name: 'drop', value: env.drop),
+                        string(name: 'to_ps', value: env.cenm_product_set_version),
+                        string(name: 'build_log_action', value: build_action),
+                        string(name: 'usecase_status', value: overall_status),
+                        string(name: 'deployment', value: env.cluster_id),
+                        string(name: 'test_phase', value: 'DROPBACK'),
+                        string(name: 'usecase', value: 'cENM-Deploy-II-CSAR'),
+                        string(name: 'confidence_level', value: ''),
+                        string(name: 'job_link', value: job_link ),
+                        string(name: 'status', value: confidence_level_status),
+                        string(name: 'timestamp', value: ''),
+                        string(name: 'mt_utils_version', value: env.mt_utils_version)
+                    ]
+                )
+            } else {
+                echo "cENM_Send_Confidence_Level_To_Build_Log Job is disabled. So skipping"
+            }
+        }
+    }
+}
+
+def checkJobBuildable(jobName) {
+    def isBuildable = Jenkins.instance.getItem(jobName).isBuildable();
+    return isBuildable
+}

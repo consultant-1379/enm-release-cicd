@@ -1,0 +1,65 @@
+def commonMethods
+def SLAVE_FINAL = null
+
+node(SLAVE) {
+  stage('Determine Slave'){
+     if (env.is_network_type_STC == "true") {
+        SLAVE_FINAL = STC_SLAVE
+     } else {
+        SLAVE_FINAL = SLAVE
+     }
+   }
+}
+
+pipeline {
+    agent {
+        node {
+            label SLAVE_FINAL
+        }
+    }
+    options {
+        timestamps()
+    }
+
+    stages {
+        stage('Load common methods') {
+            steps {
+                script {
+                    commonMethods = load("${env.WORKSPACE}/Jenkinsfiles/common_methods/CommonMethods.groovy")
+                }
+            }
+        }
+
+        stage('Set build name and description') {
+            steps {
+                script {
+                    currentBuild.displayName = "cENM Backup For Restore Retention Policy Cleanup on ${cluster_id}"
+                    currentBuild.description = "<b>Backup Scope = ${backup_scope}</b>"
+                }
+            }
+        }
+
+        stage('Writing Parameters to parameters.properties') {
+            steps {
+                script {
+                    commonMethods.exportEnvVariablesToFile("parameters.properties")
+                }
+            }
+        }
+
+        stage('Downloading MT Utils Pipeline Scripts') {
+            steps {
+                script {
+                    commonMethods.downloadMtUtils()
+                }
+            }
+        }
+
+        stage('cENM Restore Backup Clean up') {
+            steps {
+                sh "sh MTELoopScripts/pipeline_scripts/cenm_backup_for_restore_retention_policy_cleanup_setup.sh ${WORKSPACE}/parameters.properties || exit 1"
+            }
+        }
+
+    }
+}

@@ -1,0 +1,71 @@
+def returnParametersForDsl() {
+    return [REGULAR_SLAVES: env.REGULAR_SLAVES, OPENSTACK_SLAVES: env.OPENSTACK_SLAVES, TEAM_EMAIL: env.TEAM_EMAIL, PERMISSION_GROUPS: env.PERMISSION_GROUPS]
+}
+
+def returnListOfCenmRestoreBackupJobs() {
+    def listOfCenmRestoreBackupJobs = []
+
+    // === Cenm Restore Backup Standalone Job ===
+    listOfCenmRestoreBackupJobs = listOfCenmRestoreBackupJobs.plus('DSL/seedpipelines/cenmrestorebackup/CenmRestoreBackup.groovy')
+
+    // === Cenm Backup For Restore Retention Policy Cleanup Job ===
+    listOfCenmRestoreBackupJobs = listOfCenmRestoreBackupJobs.plus('DSL/seedchildjobs/cenmbackupforrestoreretentionpolicycleanup/CenmBackupForRestoreRetentionPolicyCleanup.groovy')
+
+    // === Restore Backup Updater ===
+    listOfCenmRestoreBackupJobs = listOfCenmRestoreBackupJobs.plus('pipeline_generation/cenm_restore_backup/DSL/CenmRestoreBackupPipelineUpdater.groovy')
+    
+    return listOfCenmRestoreBackupJobs
+}
+
+pipeline {
+    agent {
+        node {
+            label OPENSTACK_SLAVES
+        }   
+    }
+
+    environment {
+        DSL_CLASSPATH = 'DSL'
+    }
+
+    stages {
+        stage ('Validate required parameters set') {
+            when {
+                anyOf {
+                    expression {
+                        env.REGULAR_SLAVES == null
+                    }
+                    expression {
+                        env.OPENSTACK_SLAVES == null
+                    }
+                    expression {
+                        env.TEAM_EMAIL == null
+                    }
+                }
+            }
+            steps {
+                error('Some required parameter(s) not set. Please supply a value for all required parameters')
+            }
+        }
+        stage ('Default PERMISSION_GROUPS if null') {
+            when {
+                expression {
+                    env.PERMISSION_GROUPS == null
+                }
+            }
+            steps {
+                script {
+                    env.PERMISSION_GROUPS = 'authenticated'
+                }
+            }
+        }
+
+        stage('Cenm Restore Backup Pipeline Jobs') {
+            steps {
+                jobDsl targets: returnListOfCenmRestoreBackupJobs().join('\n'),
+                    additionalParameters: returnParametersForDsl(),
+                    additionalClasspath: env.DSL_CLASSPATH
+            }
+        }
+    }
+}

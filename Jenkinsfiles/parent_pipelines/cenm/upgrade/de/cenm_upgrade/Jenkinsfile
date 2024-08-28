@@ -1,0 +1,111 @@
+import jenkins.model.*
+
+pipeline {
+
+    agent {
+        node {
+            label SLAVE
+        }
+    }
+
+    options {
+        timestamps()
+    }
+
+    stages {
+        stage('Set build name and description') {
+            steps {
+                script {
+                    currentBuild.displayName = "Upgrade on ${cluster_id}"
+                    currentBuild.description = "<b>Drop = ${drop}<br>Product Set Version = ${cenm_product_set_version}<br>MT Utils Version = ${mt_utils_version}</b>"
+                }
+            }
+        }
+
+        stage('Set start time') {
+            steps {
+                sh '''echo "start_time=$(date +'%F %T')" >> "artifact.properties"'''
+            }
+        }
+
+        stage('DE cENM Upgrade') {
+            when {
+                expression {
+                    env.is_dit_versioning_applied == "False"
+                }
+            }
+            steps {
+                script {
+                    if (checkJobBuildable("cENM_Upgrade")) {
+                        def Cenm_Upgrade = build(
+                            job: "cENM_Upgrade",
+                            propagate: true,
+                            wait: true,
+                            parameters: [
+                                string(name: 'deployment_mechanism', value: env.deployment_mechanism),
+                                string(name: 'integration_value_type', value: env.integration_value_type),
+                                string(name: 'environment_name', value: env.cluster_id),
+                                string(name: 'stage_area', value: 'ci_internal'),
+                                string(name: 'product_set_version', value: env.cenm_product_set_version),
+                                string(name: 'backup_name', value: env.backup_name),
+                                string(name: 'drop', value: env.drop),
+                            ]
+                        )
+                    } else {
+                        echo "cENM_Upgrade Job is disabled. So skipping"
+                    }
+                }
+            }
+        }
+
+        stage('DE New cENM Upgrade') {
+            when {
+                expression {
+                    env.is_dit_versioning_applied == "True"
+                }
+            }
+            steps {
+                script {
+                    if (checkJobBuildable("cENM_Upgrade_New")) {
+                        def Cenm_Upgrade = build(
+                            job: "cENM_Upgrade_New",
+                            propagate: true,
+                            wait: true,
+                            parameters: [
+                                string(name: 'use_case', value: 'Upgrade'),
+                                string(name: 'Artifact_type', value: env.Artifact_type),
+                                string(name: 'snapshot_csar_lite_location', value: env.snapshot_csar_lite_location),
+                                string(name: 'snapshot_integration_key_value_pairs', value: env.snapshot_integration_key_value_pairs),
+                                string(name: 'deployment_size', value: env.deployment_size),
+                                string(name: 'orchestration_type', value: env.orchestration_type),
+                                string(name: 'container_registry_type', value: env.container_registry_type),
+                                string(name: 'environment_name', value: env.cluster_id),
+                                string(name: 'backup_name', value: env.backup_name),
+                                string(name: 'product_set_version', value: env.cenm_product_set_version),
+                            ]
+                        )
+                    } else {
+                        echo "cENM_Upgrade_New Job is disabled. So skipping"
+                    }
+                }
+            }
+        }
+
+        stage('Set end time') {
+            steps {
+                sh '''echo "end_time=$(date +'%F %T')" >> "artifact.properties"'''
+            }
+        }
+
+        stage('Archive artifacts') {
+            steps{
+                archiveArtifacts artifacts: 'artifact.properties'
+            }
+        }
+    }
+}
+
+def checkJobBuildable(jobName) {
+    def isBuildable = Jenkins.instance.getItem(jobName).isBuildable();
+    return isBuildable
+}

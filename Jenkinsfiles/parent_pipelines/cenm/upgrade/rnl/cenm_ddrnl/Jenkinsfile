@@ -1,0 +1,113 @@
+import jenkins.model.*
+
+pipeline {
+
+    agent {
+        node {
+            label SLAVE
+        }
+    }
+
+    options {
+        timestamps()
+    }
+
+    stages {
+
+        stage('Set build name and description') {
+            steps {
+                script {
+                    currentBuild.displayName = "Cluster ID = ${cluster_id}"
+                    currentBuild.description = "<b>Product Set Version = ${product_set_version}<br>Node Packages Directory = ${node_packages_dir}</b>"
+                }
+            }
+        }
+
+        stage('Load common methods') {
+            steps {
+                script {
+                    commonMethods = load("${env.WORKSPACE}/Jenkinsfiles/common_methods/CommonMethods.groovy")
+                }
+            }
+        }
+
+        stage('Writing Parameters to parameters.properties') {
+            steps {
+                script {
+                    commonMethods.exportEnvVariablesToFile("parameters.properties")
+                }
+            }
+        }
+
+        stage('Downloading MT Utils Pipeline Scripts') {
+            steps {
+                script {
+                    commonMethods.downloadMtUtils()
+                }
+            }
+        }
+
+        stage('Execute EMT Deployment State Change Script') {
+            steps{
+              sh "MTELoopScripts/pipeline_scripts/emt/emt_deployment_state_change.sh ${WORKSPACE}/parameters.properties || exit 1"
+            }
+        }
+
+        stage('Storing Job Details in Slave') {
+            steps {
+                script {
+                    def node_name = "${SLAVE}"
+                    def date = new Date()
+                    sh " echo \" NODE_NAME : ${env.NODE_NAME} ; JOB_NAME : ${env.JOB_NAME} ; BUILD_NUMBER : ${env.BUILD_NUMBER} ; $date \" >> \"/home/lciadm100/jenkins/job_details.log\" "
+                }
+            }
+        }
+
+        stage('Execute EMT Pipeline script') {
+            steps{
+              sh "MTELoopScripts/pipeline_scripts/emt/jenkins/final_build_setup.sh ${WORKSPACE}/parameters.properties initial || exit 1"
+            }
+        }
+
+        stage('RNL ECN cENM AGAT') {
+            steps {
+                script {
+                    if (checkJobBuildable("RNL_cENM_AGAT")) {
+                        def Cenm_RNL_AGAT = build(
+                            job: "RNL_cENM_AGAT",
+                            propagate: true,
+                            wait: true,
+                            parameters: [
+                                string(name: 'cluster_id', value: env.cluster_id),
+                                string(name: 'test_phase', value: 'RNL'),
+                                string(name: 'drop', value: env.drop),
+                                string(name: 'product_set_version', value: env.product_set_version),
+                                string(name: 'mt_utils_version', value: env.mt_utils_version),
+                                string(name: 'data_provider_name', value: env.data_provider_name),
+                                string(name: 'users_to_create', value: env.users_to_create),
+                                string(name: 'supported_ddrnl_node_types', value: env.supported_ddrnl_node_types),
+                                string(name: 'node_packages_dir', value: env.node_packages_dir),
+                                string(name: 'tdm_api_host', value: env.tdm_api_host),
+                            ]
+                        )
+                    } else {
+                        echo "RNL_cENM_AGAT Job is disabled. So skipping"
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            script {
+                sh "MTELoopScripts/pipeline_scripts/emt/jenkins/final_build_setup.sh ${WORKSPACE}/parameters.properties post_build || exit 1"
+            }
+        }
+    }
+}
+
+def checkJobBuildable(jobName) {
+    def isBuildable = Jenkins.instance.getItem(jobName).isBuildable();
+    return isBuildable
+}

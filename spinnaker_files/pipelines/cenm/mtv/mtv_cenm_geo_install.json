@@ -1,0 +1,432 @@
+{
+    "application": "APPLICATION_NAME",
+    "disabled": false,
+    "keepWaitingPipelines": true,
+    "name": "PIPELINE_NAME",
+    "notifications": [
+      {
+        "address": "BumbleBee.ENM@tcs.com",
+        "cc": "",
+        "level": "pipeline",
+        "type": "email",
+        "when": [
+          "pipeline.failed"
+        ]
+      }
+    ],
+    "parameterConfig": [
+      {
+        "default": "",
+        "description": "",
+        "hasOptions": false,
+        "label": "",
+        "name": "environment_name",
+        "options": [
+          {
+            "value": ""
+          }
+        ],
+        "pinned": false,
+        "required": true
+      },
+      {
+        "default": "True",
+        "description": "Select True if the new DIT versioning is applied on the Deployment.",
+        "hasOptions": true,
+        "label": "",
+        "name": "is_dit_versioning_applied",
+        "options": [
+          {
+            "value": "False"
+          },
+          {
+            "value": "True"
+          }
+        ],
+        "pinned": false,
+        "required": true
+      },
+      {
+        "default": "csar",
+        "description": "",
+        "hasOptions": true,
+        "label": "",
+        "name": "deployment_mechanism",
+        "options": [
+          {
+            "value": "csar"
+          },
+          {
+            "value": "charts"
+          }
+        ],
+        "pinned": false,
+        "required": true
+      },
+      {
+        "default": "eric-enm-integration-production-values",
+        "description": "NOTE : CSAR supports only eric-enm-integration-production-values and eric-enm-integration-extra-large-production-values.",
+        "hasOptions": true,
+        "label": "",
+        "name": "integration_value_type",
+        "options": [
+          {
+            "value": "eric-enm-integration-production-values"
+          },
+          {
+            "value": "eric-enm-integration-extra-large-production-values"
+          },
+          {
+            "value": "eric-enm-multi-instance-functional-integration-values"
+          },
+          {
+            "value": "eric-enm-single-instance-production-integration-values"
+          },
+          {
+            "value": "eric-enm-integration-functional-test-values"
+          },
+          {
+            "value": "eric-enm-integration-openstack-core-values"
+          }
+        ],
+        "pinned": false,
+        "required": true
+      },
+      {
+        "default": "",
+        "description": "",
+        "hasOptions": false,
+        "label": "",
+        "name": "cenm_product_set_version",
+        "options": [
+          {
+            "value": ""
+          }
+        ],
+        "pinned": false,
+        "required": true
+      },
+      {
+        "default": "AUTO",
+        "description": "",
+        "hasOptions": false,
+        "label": "",
+        "name": "central_csv_version",
+        "options": [
+          {
+            "value": ""
+          }
+        ],
+        "pinned": false,
+        "required": true
+      },
+      {
+        "default": "",
+        "description": "",
+        "hasOptions": false,
+        "label": "",
+        "name": "drop",
+        "options": [
+          {
+            "value": ""
+          }
+        ],
+        "pinned": false,
+        "required": true
+      },
+      {
+        "default": "MAPPED",
+        "description": "",
+        "hasOptions": true,
+        "label": "",
+        "name": "tor_utils_version",
+        "options": [
+          {
+            "value": "INSTALLED"
+          },
+          {
+            "value": "NOT_REQUIRED"
+          },
+          {
+            "value": "LATEST"
+          }
+        ],
+        "pinned": false,
+        "required": true
+      },
+      {
+        "default": "MAPPED",
+        "description": "",
+        "hasOptions": true,
+        "label": "",
+        "name": "nss_utils_version",
+        "options": [
+          {
+            "value": "LATEST"
+          },
+          {
+            "value": "NOT_REQUIRED"
+          }
+        ],
+        "pinned": false,
+        "required": true
+      },
+      {
+        "default": "",
+        "description": "",
+        "hasOptions": false,
+        "label": "",
+        "name": "test_phase",
+        "options": [
+          {
+            "value": ""
+          }
+        ],
+        "pinned": false,
+        "required": true
+      },
+      {
+        "default": "RELEASE",
+        "description": "",
+        "hasOptions": false,
+        "label": "",
+        "name": "mt_utils_version",
+        "options": [
+          {
+            "value": ""
+          }
+        ],
+        "pinned": false,
+        "required": true
+      },
+      {
+        "default": "MAPPED",
+        "description": "",
+        "hasOptions": true,
+        "label": "",
+        "name": "apt_version",
+        "options": [
+          {
+            "value": "LATEST"
+          },
+          {
+            "value": "NOT_REQUIRED"
+          }
+        ],
+        "pinned": false,
+        "required": true
+      },
+      {
+        "default": "YES",
+        "description": "Customers should set this parameter to YES only if NSS 15K network or 2K network is on the servers linked to ENM",
+        "hasOptions": true,
+        "label": "",
+        "name": "nodesCleanUp",
+        "options": [
+          {
+            "value": "NO"
+          },
+          {
+            "value": "YES"
+          }
+        ],
+        "pinned": false,
+        "required": true
+      },
+      {
+        "default": "csar",
+        "description": "This parameter acts as the flow controller to select the deployment mechanism either csar or csar-lite.",
+        "hasOptions": true,
+        "label": "",
+        "name": "Artifact_type",
+        "options": [
+          {
+            "value": "csar_lite"
+          },
+          {
+            "value": "csar"
+          },
+          {
+            "value": "snapshot_csar_lite"
+          }
+        ],
+        "pinned": false,
+        "required": true
+      },
+      {
+        "default": "Install",
+        "description": "Select the appropriate operation to be done.",
+        "hasOptions": true,
+        "label": "",
+        "name": "use_case",
+        "options": [
+          {
+            "value": "Install"
+          },
+          {
+            "value": "Upgrade"
+          },
+          {
+            "value": "Backup"
+          },
+          {
+            "value": "Rollback"
+          }
+        ],
+        "pinned": false,
+        "required": true
+      },
+      {
+        "default": "small-production",
+        "description": "Select the type of integration values type to be used.",
+        "hasOptions": true,
+        "label": "",
+        "name": "deployment_size",
+        "options": [
+          {
+            "value": "small-production"
+          },
+          {
+            "value": "extra-large-production"
+          },
+          {
+            "value": "single-instance"
+          },
+          {
+            "value": "multi-instance"
+          }
+        ],
+        "pinned": false,
+        "required": true
+      },
+      {
+        "default": "helm",
+        "description": "Provide the orchestration type with which deployment should be happen.",
+        "hasOptions": true,
+        "label": "",
+        "name": "orchestration_type",
+        "options": [
+          {
+            "value": "helm"
+          },
+          {
+            "value": "EVNFM"
+          }
+        ],
+        "pinned": false,
+        "required": true
+      },
+      {
+        "default": "other",
+        "description": "Select docker registry which is to be used while the deployment time, when orchestration_type is EVNFM is selected. By default other docker registry will be used.",
+        "hasOptions": true,
+        "label": "",
+        "name": "container_registry_type",
+        "options": [
+          {
+            "value": "other"
+          },
+          {
+            "value": "EVNFM"
+          }
+        ],
+        "pinned": false,
+        "required": true
+      }
+    ],
+    "spelEvaluator": "v4",
+    "stages": [
+      {
+        "continuePipeline": false,
+        "failPipeline": true,
+        "job": "Geo_cENM_Initial_Install_Flow",
+        "master": "FEM_CONTROLLER",
+        "name": "Geo_cENM_Initial_Install_Flow",
+        "parameters": {
+          "deployment_mechanism": "${parameters['deployment_mechanism']}",
+          "is_dit_versioning_applied": "${parameters['is_dit_versioning_applied']}",
+          "cenm_product_set_version": "${parameters['cenm_product_set_version']}",
+          "integration_value_type": "${parameters['integration_value_type']}",
+          "test_phase": "${parameters['test_phase']}",
+          "cluster_id": "${parameters['environment_name']}",
+          "drop": "${parameters['drop']}",
+          "mt_utils_version": "${parameters['mt_utils_version']}",
+          "Artifact_type": "${parameters['Artifact_type']}",
+          "use_case": "${parameters['use_case']}",
+          "deployment_size": "${parameters['deployment_size']}",
+          "container_registry_type": "${parameters['container_registry_type']}",
+          "orchestration_type": "${parameters['orchestration_type']}",
+          "snapshot_csar_lite_location": "${parameters['snapshot_csar_lite_location']}",
+          "snapshot_integration_key_value_pairs": "${parameters['snapshot_integration_key_value_pairs']}"
+        },
+        "refId": "1",
+        "requisiteStageRefIds": [],
+        "stageTimeoutMs": 36000000,
+        "type": "jenkins"
+      },
+      {
+        "continuePipeline": false,
+        "failPipeline": true,
+        "job": "cENM_Retrieve_ENM_Product_Set_Version",
+        "master": "FEM_CONTROLLER",
+        "name": "Geo_cENM_Retrieve_ENM_Product_Set_Flow",
+        "parameters": {
+          "product_set_version": "${parameters['cenm_product_set_version']}",
+          "test_phase": "${parameters['test_phase']}",
+          "cluster_id": "${parameters['environment_name']}"
+        },
+        "propertyFile": "artifact.properties",
+        "refId": "2",
+        "requisiteStageRefIds": [
+          "1"
+        ],
+        "stageTimeoutMs": 36000000,
+        "type": "jenkins"
+      },
+      {
+        "continuePipeline": false,
+        "failPipeline": true,
+        "job": "GEO_cENM_Install_Deployment_Setup_Flow",
+        "master": "FEM_CONTROLLER",
+        "name": "Geo_cENM_Deployment_Setup",
+        "parameters": {
+          "cenm_product_set_version": "${parameters['cenm_product_set_version']}",
+          "central_csv_version": "${parameters['central_csv_version']}",
+          "cluster_id": "${parameters['environment_name']}",
+          "deployment_type": "cloud_native",
+          "drop": "${parameters['drop']}",
+          "mt_utils_version": "${parameters['mt_utils_version']}",
+          "nss_utils_version": "${parameters['nss_utils_version']}",
+          "product_set_version": "${#stage('Geo_cENM_Retrieve_ENM_Product_Set_Flow')['context']['enm_product_set_version']}",
+          "test_phase": "${parameters['test_phase']}",
+          "apt_version": "${parameters['apt_version']}",
+          "tor_utils_version": "${parameters['tor_utils_version']}",
+          "nodesCleanUp": "${parameters['nodesCleanUp']}"
+        },
+        "refId": "3",
+        "requisiteStageRefIds": [
+          "2"
+        ],
+        "stageTimeoutMs": 36000000,
+        "type": "jenkins"
+      },
+      {
+        "continuePipeline": false,
+        "failPipeline": true,
+        "job": "GEO_cENM_Secondary_Site_Setup",
+        "master": "FEM_CONTROLLER",
+        "name": "GEO_cENM_Secondary_Site_Setup",
+        "parameters": {
+          "cluster_id": "${parameters['environment_name']}",
+          "mt_utils_version": "${parameters['mt_utils_version']}"
+        },
+        "refId": "4",
+        "requisiteStageRefIds": [
+            "3"
+        ],
+        "stageTimeoutMs": 36000000,
+        "type": "jenkins"
+      }
+    ],
+    "triggers": []
+  }

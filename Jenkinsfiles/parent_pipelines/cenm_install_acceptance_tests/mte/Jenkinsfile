@@ -1,0 +1,231 @@
+import jenkins.model.*
+
+pipeline {
+
+    agent {
+        node {
+            label SLAVE
+        }
+    }
+
+    options {
+        timestamps()
+    }
+
+    stages {
+        stage('Set build name and description') {
+            steps {
+                script {
+                    currentBuild.displayName = "Acceptance tests on ${cluster_id}"
+                    currentBuild.description = "<b>Test Phase = ${test_phase}<br>Product Set Version = ${product_set_version}<br>MT Utils Version = ${mt_utils_version}<br>Taf Version = ${taf_version}</b>"
+                }
+            }
+        }
+
+        stage('cENM Send Confidence Level') {
+            steps {
+                setConfidenceLevelToSend('in_progress');
+            }
+        }
+
+        stage('cENM Send Confidence Level to Build log') {
+            steps {
+                setConfidenceLevelToSendToBuildLog('in_progress', 'in_progress','update', '', '');
+            }
+        }
+
+        stage('Load common methods') {
+            steps {
+                script {
+                    commonMethods = load("${env.WORKSPACE}/Jenkinsfiles/common_methods/CommonMethods.groovy")
+                }
+            }
+        }
+
+        stage('Writing Parameters to parameters.properties') {
+            steps {
+                script {
+                    commonMethods.exportEnvVariablesToFile("parameters.properties")
+                }
+            }
+        }
+
+        stage('Downloading MT Utils Pipeline Scripts') {
+            steps {
+                script {
+                    commonMethods.downloadMtUtils()
+                }
+            }
+        }
+
+        stage('Storing Job Details in Slave') {
+            steps {
+                script {
+                    def node_name = "${SLAVE}"
+                    def date = new Date()
+                    sh " echo \" NODE_NAME : ${env.NODE_NAME} ; JOB_NAME : ${env.JOB_NAME} ; BUILD_NUMBER : ${env.BUILD_NUMBER} ; $date \" >> \"/home/lciadm100/jenkins/job_details.log\" "
+                }
+            }
+        }
+
+        /**stage('cENM Run APT System Assertions') {
+            steps {
+                script {
+                    if (checkJobBuildable('cENM_Run_APT_System_Assertions')) {
+                        def Cenm_Run_APT_System_Assertions = build(
+                            job: "cENM_Run_APT_System_Assertions",
+                            propagate: false,
+                            wait: false,
+                            parameters: [
+                                string(name: 'test_phase', value: env.test_phase),
+                                string(name: 'cluster_id', value: env.cluster_id),
+                                string(name: 'drop', value: env.drop),
+                                string(name: 'product_set_version', value: env.product_set_version),
+                                string(name: 'restrict_to_features', value: env.restrict_to_features),
+                                string(name: 'features_to_exclude', value: env.features_to_exclude),
+                                string(name: 'mt_utils_version', value: env.mt_utils_version),
+                                string(name: 'start_time', value: env.start_time),
+                                string(name: 'end_time', env.end_time),
+                                string(name: 'copy_to_ftp', env.copy_to_ftp),
+                            ]
+                        )
+                    }
+                }
+            }
+        }*/
+
+        stage('cENM UI Launcher Link verification') {
+            steps {
+                script {
+                    if (checkJobBuildable("cENM_UI_Launcher_Link_Verification")) {
+                        def Cenm_UI_Launcher_Link_Verification = build(
+                            job: "cENM_UI_Launcher_Link_Verification",
+                            propagate: false,
+                            wait: true,
+                            parameters: [
+                                string(name: 'test_phase', value: env.test_phase),
+                                string(name: 'cluster_id', value: env.cluster_id),
+                                string(name: 'drop', value: env.drop),
+                                string(name: 'product_set_version', value: env.product_set_version),
+                                string(name: 'mt_utils_version', value: env.mt_utils_version),
+                                string(name: 'taf_version', value: env.taf_version),
+                            ]
+                        )
+                        env.job_link = Cenm_UI_Launcher_Link_Verification.absoluteUrl
+                        env.console_output_url = sh(script: 'echo "Job Link is: ${job_link}"', returnStdout: true)
+                        env.UILauncherBuildVariables = Cenm_UI_Launcher_Link_Verification.getBuildVariables()
+                        env.allureLogUrl = sh(script: 'echo "${UILauncherBuildVariables}" | tr "," "\n" | grep "TE_ALLURE_LOG_URL" | xargs | cut -d "=" -f 2', returnStdout: true)
+                        if (Cenm_UI_Launcher_Link_Verification.result != "SUCCESS") {
+                            echo "ERROR : Cenm_UI_Launcher_Link_Verification failed. Failing the build!"
+                            currentBuild.result = 'FAILURE'
+                        }
+                    } else {
+                        echo "cENM_UI_Launcher_Link_Verification Job is disabled. So skipping"
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            setConfidenceLevelToSendToBuildLog('passed', 'passed','update', '', env.allureLogUrl);
+        }
+        failure {
+            setConfidenceLevelToSend('failed');
+            setConfidenceLevelToSendToBuildLog('failed', 'failed','update',  '', env.allureLogUrl);
+        }
+        aborted {
+            setConfidenceLevelToSend('failed');
+            setConfidenceLevelToSendToBuildLog('failed', 'failed','update', '', '');
+        }
+    }
+}
+
+def setConfidenceLevelToSend(confidence_level_status) {
+    script {
+        if (env.send_confidence_level == 'YES') {
+            if (checkJobBuildable("cENM_Send_Confidence_Level")) {
+                if (env.is_dit_versioning_applied == 'True') {
+                    env.confidence_level_name = 'cENM-Deploy-II-CSAR-Lite'
+                } else {
+                    env.confidence_level_name = 'cENM-Deploy-II-Charts'
+                }
+                def Cenm_Send_Confidence_Level = build(
+                    job: "cENM_Send_Confidence_Level",
+                    propagate: false,
+                    wait: false,
+                    parameters: [
+                        string(name: 'product_set_version', value: env.cenm_product_set_version),
+                        string(name: 'confidence_level_name', value: env.confidence_level_name),
+                        string(name: 'confidence_level_status', value: confidence_level_status),
+                        string(name: 'mt_utils_version', value: env.mt_utils_version),
+                    ]
+                )
+            } else {
+                echo "cENM_Send_Confidence_Level Job is disabled. So skipping"
+            }
+        }
+    }
+}
+
+def setConfidenceLevelToSendToBuildLog(overall_status, confidence_level_status, build_action, job_link, allure_link) {
+    script {
+        if (env.publish_to_buildlog == 'YES' && env.is_dit_versioning_applied == 'False') {
+            if (checkJobBuildable("cENM_Send_Confidence_Level_To_Build_Log")) {
+                def Cenm_Send_Confidence_Level_To_Build_Log = build(
+                    job: "cENM_Send_Confidence_Level_To_Build_Log",
+                    propagate: false,
+                    wait: false,
+                    parameters: [
+                        string(name: 'drop', value: env.drop),
+                        string(name: 'to_ps', value: env.cenm_product_set_version),
+                        string(name: 'build_log_action', value: build_action),
+                        string(name: 'usecase_status', value: overall_status),
+                        string(name: 'deployment', value: env.cluster_id),
+                        string(name: 'test_phase', value: 'MTE'),
+                        string(name: 'usecase', value: 'cENM-Deploy-II-Charts'),
+                        string(name: 'confidence_level', value: 'cENM-UI-Link-Launcher'),
+                        string(name: 'allure_link', value: allure_link ),
+                        string(name: 'status', value: confidence_level_status),
+                        string(name: 'timestamp', value: ''),
+                        string(name: 'mt_utils_version', value: env.mt_utils_version)
+                    ]
+                )
+            } else {
+                echo "cENM_Send_Confidence_Level_To_Build_Log Job is disabled. So skipping"
+            }
+        } else {
+            if (env.publish_to_buildlog == 'YES' && env.is_dit_versioning_applied == 'True') {
+                if (checkJobBuildable("cENM_Send_Confidence_Level_To_Build_Log")) {
+                    def Cenm_Send_Confidence_Level_To_Build_Log = build(
+                        job: "cENM_Send_Confidence_Level_To_Build_Log",
+                        propagate: false,
+                        wait: false,
+                        parameters: [
+                            string(name: 'drop', value: env.drop),
+                            string(name: 'to_ps', value: env.cenm_product_set_version),
+                            string(name: 'build_log_action', value: build_action),
+                            string(name: 'usecase_status', value: overall_status),
+                            string(name: 'deployment', value: env.cluster_id),
+                            string(name: 'test_phase', value: 'MTE'),
+                            string(name: 'usecase', value: 'cENM-Deploy-II-CSAR-Lite'),
+                            string(name: 'confidence_level', value: 'cENM-UI-Link-Launcher'),
+                            string(name: 'allure_link', value: allure_link ),
+                            string(name: 'status', value: confidence_level_status),
+                            string(name: 'timestamp', value: ''),
+                            string(name: 'mt_utils_version', value: env.mt_utils_version)
+                        ]
+                    )
+                } else {
+                    echo "cENM_Send_Confidence_Level_To_Build_Log Job is disabled. So skipping"
+                }
+            }
+        }
+    }
+}
+
+def checkJobBuildable(jobName) {
+    def isBuildable = Jenkins.instance.getItem(jobName).isBuildable();
+    return isBuildable
+}

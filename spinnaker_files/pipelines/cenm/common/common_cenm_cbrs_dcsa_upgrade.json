@@ -1,0 +1,84 @@
+{
+    "application": "APPLICATION_NAME",
+    "disabled": false,
+    "keepWaitingPipelines": true,
+    "name": "PIPELINE_NAME",
+    "limitConcurrent": false,
+    "notifications": [
+      {
+        "address": "BumbleBee.ENM@tcs.com",
+        "cc": "",
+        "level": "pipeline",
+        "type": "email",
+        "when": [
+          "pipeline.failed"
+        ]
+      }
+    ],
+    "parameterConfig": [
+        {
+          "default": "",
+          "description": "",
+          "hasOptions": false,
+          "label": "",
+          "name": "ENVIRONMENT_NAME",
+          "options": [
+            {
+              "value": ""
+            }
+          ],
+          "pinned": false,
+          "required": true
+        },
+        {
+          "default": "drop",
+          "description": "Leave empty for latest version as drop value. CSAR version e.g.: 0.108.0-9, drop, release, build",
+          "hasOptions": false,
+          "label": "",
+          "name": "CSAR_VERSION",
+          "options": [
+            {
+              "value": ""
+            }
+          ],
+          "pinned": false,
+          "required": false
+        },
+        {
+          "default": "cbrs",
+          "description": "Provide namespace for upgrade (default will be cbrs)",
+          "hasOptions": false,
+          "label": "",
+          "name": "NAMESPACE",
+          "options": [
+            {
+              "value": ""
+            }
+          ],
+          "pinned": false,
+          "required": false
+        }
+      ],
+      "schema": "1",
+      "spelEvaluator": "v4",
+      "stages": [
+        {
+          "completeOtherBranchesThenFail": false,
+          "continuePipeline": false,
+          "failPipeline": true,
+          "job": "CBRS-Upgrade",
+          "master": "CBRS_JOB_CONTROLLER",
+          "name": "CBRS_SADC_Upgrade_Flow",
+          "parameters": {
+            "CSAR_VERSION": "${parameters['CSAR_VERSION']}",
+            "NAMESPACE": "${parameters['NAMESPACE']}",
+            "ENVIRONMENT_NAME": "${parameters['ENVIRONMENT_NAME']}"
+          },
+          "refId": "1",
+          "requisiteStageRefIds": [],
+          "stageTimeoutMs": 36000000,
+          "type": "jenkins"
+        }
+      ],
+      "triggers": []
+}

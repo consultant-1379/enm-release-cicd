@@ -1,0 +1,91 @@
+def commonMethods
+def SLAVE_FINAL = null
+
+node(SLAVE) {
+  stage('Determine Slave'){
+     if (env.is_network_type_STC == "true") {
+        SLAVE_FINAL = STC_SLAVE
+     } else {
+        SLAVE_FINAL = SLAVE
+     }
+   }
+}
+
+pipeline {
+    agent {
+        node {
+            label SLAVE_FINAL
+        }
+    }
+    options {
+        timestamps()
+    }
+    stages {
+        stage('Load common methods') {
+            steps {
+                script {
+                    commonMethods = load("${env.WORKSPACE}/Jenkinsfiles/common_methods/CommonMethods.groovy")
+                }
+            }
+        }
+
+        stage('Writing Parameters to parameters.properties') {
+            steps {
+                script {
+                    commonMethods.exportEnvVariablesToFile("parameters.properties")
+                }
+            }
+        }
+
+        stage('Set build name') {
+            steps {
+                script {
+                    currentBuild.displayName = "Environment name = ${cluster_id}"
+                }
+            }
+        }
+
+        stage('Downloading MT Utils Pipeline Scripts') {
+            steps {
+                script {
+                    commonMethods.downloadMtUtils()
+                }
+            }
+        }
+
+        stage('Downloading APT Version Pipeline Scripts') {
+            steps {
+                sh '''
+                    #!/bin/sh
+                    echo "Retrieving Scripts from Nexus"
+                    mkdir ${WORKSPACE}/aptconfig
+                    apt_utils_version_tar_file_name="apt_${apt_utils_version}.tar.gz"
+                    curl -s --noproxy \\* -L "https://arm1s11-eiffel004.eiffel.gic.ericsson.se:8443/nexus/service/local/artifact/maven/redirect?r=releases&g=com.ericsson.oss.ci.rtd&a=apt-config&p=tar.gz&v=${apt_utils_version}" -o ${WORKSPACE}/aptconfig/${apt_utils_version_tar_file_name}
+                    tar -zxf ${WORKSPACE}/aptconfig/${apt_utils_version_tar_file_name} --directory ${WORKSPACE}/aptconfig/
+                '''
+            }
+        }
+
+        stage('Running Setup Script') {
+            steps {
+                sh "sh MTELoopScripts/pipeline_scripts/deploy_apt_setup.sh ${WORKSPACE}/parameters.properties || exit 1"
+            }
+        }
+
+        stage('Inject environment variables') {
+            steps {
+                script {
+                    commonMethods.loadProperties("${WORKSPACE}/build.properties")
+                }
+            }
+        }
+
+        stage('Set build description') {
+            steps {
+                script {
+                    currentBuild.description = "<b>APT Version = ${apt_version}<br>Product Set Version = ${product_set_version}<br>MT Utils Version = ${mt_utils_version}</b>"
+                }
+            }
+        }
+    }
+}

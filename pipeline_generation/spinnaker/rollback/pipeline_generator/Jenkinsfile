@@ -1,0 +1,68 @@
+def returnParametersForDsl() {
+    return [REGULAR_SLAVES: env.REGULAR_SLAVES, OPENSTACK_SLAVES: env.OPENSTACK_SLAVES, TEAM_EMAIL: env.TEAM_EMAIL, PERMISSION_GROUPS: env.PERMISSION_GROUPS]
+}
+
+def returnListOfSpinnakerCenmRollbackJobs() {
+    def listOfSpinnakerCenmRollbackJobs = []
+
+    // === Spinnaker cENM Rollback Pipeline Updater ===
+    listOfSpinnakerCenmRollbackJobs = listOfSpinnakerCenmRollbackJobs.plus('DSL/spinnakerpipeline/cenm/rollback/SpinnakerCenmRollbackPipeline.groovy')
+
+    // === Spinnaker cENM Rollback Pipeline Generator Updater ===
+    listOfSpinnakerCenmRollbackJobs = listOfSpinnakerCenmRollbackJobs.plus('pipeline_generation/spinnaker/rollback/DSL/SpinnakerCenmRollbackPipelineUpdater.groovy')
+
+    return listOfSpinnakerCenmRollbackJobs
+}
+
+pipeline {
+    agent {
+        node {
+            label OPENSTACK_SLAVES
+        }
+    }
+
+    environment {
+        DSL_CLASSPATH = 'DSL'
+    }
+
+    stages {
+        stage ('Validate required parameters set') {
+            when {
+                anyOf {
+                    expression {
+                        env.REGULAR_SLAVES == null
+                    }
+                    expression {
+                        env.OPENSTACK_SLAVES == null
+                    }
+                    expression {
+                        env.TEAM_EMAIL == null
+                    } 
+                }
+            }
+            steps {
+                error('Some required parameter(s) not set. Please supply a value for all required parameters')
+            }
+        }
+        stage ('Default PERMISSION_GROUPS if null') {
+            when {
+                expression {
+                    env.PERMISSION_GROUPS == null
+                }
+            }
+            steps {
+                script {
+                    env.PERMISSION_GROUPS = 'authenticated'
+                }
+            }
+        }
+
+        stage('Generate Spinnaker cENM Rollback Pipeline Jobs') {
+            steps {
+                jobDsl targets: returnListOfSpinnakerCenmRollbackJobs().join('\n'),
+                    additionalParameters: returnParametersForDsl(),
+                    additionalClasspath: env.DSL_CLASSPATH
+            }
+        }
+    }
+}

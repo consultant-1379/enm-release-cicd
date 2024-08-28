@@ -1,0 +1,234 @@
+import jenkins.model.*
+def SLAVE_FINAL = null
+
+node(SLAVE) {
+  stage('Determine Slave'){
+     if (env.is_network_type_STC == "true") {
+        SLAVE_FINAL = STC_SLAVE
+     } else {
+        SLAVE_FINAL = SLAVE
+     }
+   }
+}
+
+pipeline {
+
+    agent {
+        node {
+            label SLAVE_FINAL
+        }
+    }
+
+    options {
+        timestamps()
+    }
+
+    stages {
+        stage('Set build name and description') {
+            steps {
+                script {
+                    currentBuild.displayName = "Rollback Deployment Setup on ${cluster_id}"
+                    currentBuild.description = "<b>MT Utils Version = ${mt_utils_version}<br>Drop = ${drop}<br>Product Set Version = ${product_set_version}</b>"
+                }
+            }
+        }
+
+        stage('Load common methods') {
+            steps {
+                script {
+                    commonMethods = load("${env.WORKSPACE}/Jenkinsfiles/common_methods/CommonMethods.groovy")
+                }
+            }
+        }
+
+        stage('Writing Parameters to parameters.properties') {
+            steps {
+                script {
+                    commonMethods.exportEnvVariablesToFile("parameters.properties")
+                }
+            }
+        }
+
+        stage('Downloading MT Utils Pipeline Scripts') {
+            steps {
+                script {
+                    commonMethods.downloadMtUtils()
+                }
+            }
+        }
+
+        stage('Execute EMT Pipeline script') {
+            steps{
+              sh "MTELoopScripts/pipeline_scripts/emt/jenkins/final_build_setup.sh ${WORKSPACE}/parameters.properties initial || exit 1"
+            }
+        }
+
+        stage('cENM Send Confidence Level to Build log') {
+            steps {
+                setConfidenceLevelToSendToBuildLog('in_progress', 'in_progress','update', '', '');
+            }
+        }
+
+        stage('cENM Push Data to DDP') {
+            steps {
+                script {
+                    if (checkJobBuildable("cENM_Push_Data_To_DDP")) {
+                        def Cenm_Push_Data_To_DDP = build(
+                            job: "cENM_Push_Data_To_DDP",
+                            propagate: true,
+                            wait: true,
+                            parameters: [
+                                string(name: 'cluster_id', value: env.cluster_id),
+                                string(name: 'test_phase', value: env.test_phase),
+                                string(name: 'mt_utils_version', value: env.mt_utils_version),
+                                string(name: 'is_network_type_STC', value: env.is_network_type_STC),
+                            ]
+                        )
+                    } else {
+                        echo "cENM_Push_Data_To_DDP Job is disabled. So skipping"
+                    }
+                }
+            }
+        }
+        stage('cENM UI Launcher Link verification') {
+            steps {
+                script {
+                    if (env.test_phase == 'RVB') {
+                        if (checkJobBuildable("cENM_UI_Launcher_Link_Verification")) {
+                            def Cenm_UI_Launcher_Link_Verification = build(
+                                job: "cENM_UI_Launcher_Link_Verification",
+                                propagate: true,
+                                wait: true,
+                                parameters: [
+                                    string(name: 'test_phase', value: env.test_phase),
+                                    string(name: 'cluster_id', value: env.cluster_id),
+                                    string(name: 'drop', value: env.drop),
+                                    string(name: 'product_set_version', value: env.product_set_version),
+                                    string(name: 'mt_utils_version', value: env.mt_utils_version),
+                                    string(name: 'taf_version', value: env.taf_version),
+                                    string(name: 'is_network_type_STC', value: env.is_network_type_STC),
+                                ]
+                            )
+                        } else {
+                            echo "cENM_UI_Launcher_Link_Verification Job is disabled. So skipping"
+                        }
+                    }
+                    else {
+                        if (checkJobBuildable("cENM_UI_Launcher_Link_Verification")) {
+                            def Cenm_UI_Launcher_Link_Verification = build(
+                                job: "cENM_UI_Launcher_Link_Verification",
+                                propagate: false,
+                                wait: true,
+                                parameters: [
+                                    string(name: 'test_phase', value: env.test_phase),
+                                    string(name: 'cluster_id', value: env.cluster_id),
+                                    string(name: 'drop', value: env.drop),
+                                    string(name: 'product_set_version', value: env.product_set_version),
+                                    string(name: 'mt_utils_version', value: env.mt_utils_version),
+                                    string(name: 'taf_version', value: env.taf_version),
+                                ]
+                            )
+                            env.job_link = Cenm_UI_Launcher_Link_Verification.absoluteUrl
+                            env.console_output_url = sh(script: 'echo "Job Link is: ${job_link}"', returnStdout: true)
+                            env.UILauncherBuildVariables = Cenm_UI_Launcher_Link_Verification.getBuildVariables()
+                            env.allureLogUrl = sh(script: 'echo "${UILauncherBuildVariables}" | tr "," "\n" | grep "TE_ALLURE_LOG_URL" | xargs | cut -d "=" -f 2', returnStdout: true)
+                            if (Cenm_UI_Launcher_Link_Verification.result != "SUCCESS") {
+                                echo "ERROR : Cenm_UI_Launcher_Link_Verification failed. Failing the build!"
+                                currentBuild.result = 'FAILURE'
+                            }
+                        }
+                        else {
+                            echo "cENM_UI_Launcher_Link_Verification Job is disabled. So skipping"
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            setConfidenceLevelToSendToBuildLog('passed', 'passed','update', '', env.allureLogUrl);
+        }
+        failure {
+            setConfidenceLevelToSendToBuildLog('failed', 'failed','update',  '', env.allureLogUrl);
+        }
+        aborted {
+            setConfidenceLevelToSendToBuildLog('failed', 'failed','update', '', '');
+        }
+        always {
+            script {
+                sh "MTELoopScripts/pipeline_scripts/emt/jenkins/final_build_setup.sh ${WORKSPACE}/parameters.properties post_build || exit 1"
+            }
+        }
+    }
+}
+
+def setConfidenceLevelToSendToBuildLog(overall_status, confidence_level_status, build_action, job_link, allure_link) {
+    script {
+        if (env.publish_to_buildlog == 'YES' && env.test_phase == 'MTE') {
+            if (checkJobBuildable("cENM_Send_Confidence_Level_To_Build_Log")) {
+                if (env.is_dit_versioning_applied == 'True') {
+                    env.usecase = 'cENM-Deploy-Rollback-CSAR-Lite'
+                } else {
+                    env.usecase = 'cENM-Deploy-Rollback-Charts'
+                }
+                def Cenm_Send_Confidence_Level_To_Build_Log = build(
+                    job: "cENM_Send_Confidence_Level_To_Build_Log",
+                    propagate: false,
+                    wait: false,
+                    parameters: [
+                        string(name: 'drop', value: env.drop),
+                        string(name: 'to_ps', value: env.cenm_product_set_version),
+                        string(name: 'from_ps', value: env.from_ps),
+                        string(name: 'build_log_action', value: build_action),
+                        string(name: 'usecase_status', value: overall_status),
+                        string(name: 'deployment', value: env.cluster_id),
+                        string(name: 'test_phase', value: env.test_phase),
+                        string(name: 'usecase', value: env.usecase),
+                        string(name: 'confidence_level', value: 'cENM-UI-Link-Launcher'),
+                        string(name: 'allure_link', value: allure_link ),
+                        string(name: 'status', value: confidence_level_status),
+                        string(name: 'timestamp', value: ''),
+                        string(name: 'mt_utils_version', value: env.mt_utils_version)
+                    ]
+                )
+            } else {
+                echo "cENM_Send_Confidence_Level_To_Build_Log Job is disabled. So skipping"
+            }
+        }
+        else {
+            if (env.publish_to_buildlog == 'YES' && env.test_phase == 'CDL') {
+                if (checkJobBuildable("cENM_Send_Confidence_Level_To_Build_Log")) {
+                    def Cenm_Send_Confidence_Level_To_Build_Log = build(
+                        job: "cENM_Send_Confidence_Level_To_Build_Log",
+                        propagate: false,
+                        wait: false,
+                        parameters: [
+                            string(name: 'drop', value: env.drop),
+                            string(name: 'to_ps', value: env.cenm_product_set_version),
+                            string(name: 'from_ps', value: env.from_ps),
+                            string(name: 'build_log_action', value: build_action),
+                            string(name: 'usecase_status', value: overall_status),
+                            string(name: 'deployment', value: env.cluster_id),
+                            string(name: 'test_phase', value: env.test_phase),
+                            string(name: 'usecase', value: 'cENM-Deploy-Rollback-CSAR'),
+                            string(name: 'confidence_level', value: 'cENM-UI-Link-Launcher'),
+                            string(name: 'allure_link', value: allure_link ),
+                            string(name: 'status', value: confidence_level_status),
+                            string(name: 'timestamp', value: ''),
+                            string(name: 'mt_utils_version', value: env.mt_utils_version)
+                        ]
+                    )
+                } else {
+                    echo "cENM_Send_Confidence_Level_To_Build_Log Job is disabled. So skipping"
+                }
+            }
+        }
+    }
+}
+
+def checkJobBuildable(jobName) {
+    def isBuildable = Jenkins.instance.getItem(jobName).isBuildable();
+    return isBuildable
+}

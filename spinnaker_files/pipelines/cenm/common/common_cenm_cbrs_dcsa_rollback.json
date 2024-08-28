@@ -1,0 +1,69 @@
+{
+    "application": "APPLICATION_NAME",
+    "disabled": false,
+    "keepWaitingPipelines": true,
+    "name": "PIPELINE_NAME",
+    "limitConcurrent": false,
+    "notifications": [
+      {
+        "address": "BumbleBee.ENM@tcs.com",
+        "cc": "",
+        "level": "pipeline",
+        "type": "email",
+        "when": [
+          "pipeline.failed"
+        ]
+      }
+    ],
+    "parameterConfig": [
+        {
+          "default": "",
+          "description": "",
+          "hasOptions": false,
+          "label": "",
+          "name": "ENVIRONMENT_NAME",
+          "options": [
+            {
+              "value": ""
+            }
+          ],
+          "pinned": false,
+          "required": true
+        },
+        {
+          "default": "cbrs",
+          "description": "Provide namespace for upgrade (default will be cbrs)",
+          "hasOptions": false,
+          "label": "",
+          "name": "NAMESPACE",
+          "options": [
+            {
+              "value": ""
+            }
+          ],
+          "pinned": false,
+          "required": false
+        }
+      ],
+      "schema": "1",
+      "spelEvaluator": "v4",
+      "stages": [
+        {
+          "completeOtherBranchesThenFail": false,
+          "continuePipeline": false,
+          "failPipeline": true,
+          "job": "CBRS-Rollback",
+          "master": "CBRS_JOB_CONTROLLER",
+          "name": "CBRS_SADC_Rollback_Flow",
+          "parameters": {
+            "NAMESPACE": "${parameters['NAMESPACE']}",
+            "ENVIRONMENT_NAME": "${parameters['ENVIRONMENT_NAME']}"
+          },
+          "refId": "1",
+          "requisiteStageRefIds": [],
+          "stageTimeoutMs": 36000000,
+          "type": "jenkins"
+        }
+      ],
+      "triggers": []
+}

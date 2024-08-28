@@ -1,0 +1,75 @@
+def commonMethods
+
+pipeline {
+    agent {
+        node {
+            label SLAVE
+        }
+    }
+    options {
+        timestamps()
+    }
+    stages {
+        stage('Load common methods') {
+            steps {
+                script {
+                    commonMethods = load("${env.WORKSPACE}/Jenkinsfiles/common_methods/CommonMethods.groovy")
+                }
+            }
+        }
+
+        stage('Set build name and description') {
+            steps {
+                script {
+                    currentBuild.displayName = "Sending Confidence Level for ${product_set_version}"
+                    currentBuild.description = "<b>Confidence Level Name = ${confidence_level_name}<br>Confidence Level Status = ${confidence_level_status}</b>"
+                }
+            }
+        }
+
+        stage('Downloading MT Utils Pipeline Scripts') {
+            steps {
+                script {
+                    commonMethods.downloadMtUtils()
+                }
+            }
+        }
+
+        stage('Sending Confidence Level') {
+            steps{
+                sh '''
+                function python() {
+                    python_command_to_run=("${@}")
+                    retrieve_image_version_to_use "enm_release_python27"
+                    docker run --rm --name mt-utils -u lciadm100 -v "$(pwd)":"/usr/src/app" armdocker.rnd.ericsson.se/proj_openstack_tooling/enm_release_python27:"${image_version_to_use}" python "${python_command_to_run[@]}"
+                }
+
+                function retrieve_image_version_to_use() {
+                    image_name="${1}"
+                    latest_repo_image_version=$(curl -s "https://gerrit-gamma.gic.ericsson.se/gitweb?p=OSS/com.ericsson.oss.ci.rtd/enm-release-containerization.git;a=blob_plain;f=VERSION")
+                    if [[ -z "${latest_repo_image_version}" ]]; then
+                        image_version_to_use="latest"
+                    else
+                        image_version_to_use="${latest_repo_image_version}"
+                        perform_image_cleanup "${image_name}"
+                    fi
+                }
+
+                function perform_image_cleanup() {
+                    image_name="${1}"
+                    current_image_version=$(docker image list | grep "${image_name}" | awk '{print $2}' | head -1)
+                    if [[ -n "${current_image_version}" ]] && [[ "${current_image_version}" != "${image_version_to_use}" ]]; then
+                        docker image rm -f "${image_name}" > /dev/null 2>&1
+                    fi
+                }
+
+                if [[ -n "${deployment_utilities}" ]]; then
+                    python MTELoopScripts/etc/pylibs/cloud_native_confidence_level_client.py -p ${product_set_version} -n ${confidence_level_name} -s ${confidence_level_status} -d "${deployment_utilities}" || exit 1
+                else
+                    python MTELoopScripts/etc/pylibs/cloud_native_confidence_level_client.py -p ${product_set_version} -n ${confidence_level_name} -s ${confidence_level_status} || exit 1
+                fi
+                '''
+            }
+        }
+    }
+}

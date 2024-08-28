@@ -1,0 +1,63 @@
+def commonMethods
+def SLAVE_FINAL = null
+
+node(SLAVE) {
+  stage('Determine Slave'){
+     if (env.is_network_type_STC == "true") {
+        SLAVE_FINAL = STC_SLAVE
+     } else {
+        SLAVE_FINAL = SLAVE
+     }
+   }
+}
+
+pipeline {
+    agent {
+        node {
+            label SLAVE_FINAL
+        }
+    }
+    options {
+        timestamps()
+    }
+    stages {
+        stage('Load common methods') {
+            steps {
+                script {
+                    commonMethods = load("${env.WORKSPACE}/Jenkinsfiles/common_methods/CommonMethods.groovy")
+                }
+            }
+        }
+
+        stage('Writing Parameters to parameters.properties') {
+            steps {
+                script {
+                    commonMethods.exportEnvVariablesToFile("parameters.properties")
+                }
+            }
+        }
+
+        stage('Downloading MT Utils Pipeline Scripts') {
+            steps {
+                script {
+                    commonMethods.downloadMtUtils()
+                }
+            }
+        }
+
+        stage('Set build descriptions') {
+            steps {
+                script {
+                    currentBuild.displayName = "Cluster ID = ${cluster_id}"
+                    currentBuild.description = "MT Utils Version = ${mt_utils_version}<br>Workload Profiles = ${workload_profiles}"
+                }
+            }
+        }
+
+        stage('Running Setup Script') {
+            steps {
+                sh 'sh MTELoopScripts/pipeline_scripts/apply_workload_setup.sh ${WORKSPACE}/parameters.properties 2 || exit 1'
+            }
+        }
+    }
+}

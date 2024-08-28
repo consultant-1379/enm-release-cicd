@@ -1,0 +1,21 @@
+def callChildJob(checkJobBuildable) {
+    stage('cENM Manage PM Function') {
+        if (checkJobBuildable("cENM_Manage_PM_Function")) {
+            def Cenm_Manage_PM_Function = build(
+                job: "cENM_Manage_PM_Function",
+                propagate: true,
+                wait: true,
+                parameters: [
+                    string(name: 'cluster_id', value: env.cluster_id),
+                    string(name: 'supervision_types', value: env.supervision_types),
+                    string(name: 'mt_utils_version', value: env.mt_utils_version),
+                    string(name: 'is_network_type_STC', value: env.is_network_type_STC),
+                ]
+            )
+        } else {
+            echo "cENM_Manage_PM_Function Job is disabled. So skipping"
+        }
+    }
+}
+
+return this

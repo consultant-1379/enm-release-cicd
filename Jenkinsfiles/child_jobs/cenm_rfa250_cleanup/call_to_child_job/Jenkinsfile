@@ -1,0 +1,22 @@
+def callChildJob(checkJobBuildable) {
+    stage('cENM RFA250 Cleanup') {
+        if (checkJobBuildable("cENM_RFA250_Cleanup")) {
+            def Cenm_RFA250_Cleanup = build(
+                job: "cENM_RFA250_Cleanup",
+                propagate: true,
+                wait: true,
+                parameters: [
+                    string(name: 'cluster_id', value: env.cluster_id),
+                    string(name: 'product_set_version', value: env.product_set_version),
+                    string(name: 'test_phase', value: env.test_phase),
+                    string(name: 'mt_utils_version', value: env.mt_utils_version),
+                    string(name: 'trigger_non_functional_flow', value: env.trigger_non_functional_flow),
+                ]
+            )
+        } else {
+            echo "cENM_RFA250_Cleanup Job is disabled. So skipping"
+        }
+    }
+}
+
+return this

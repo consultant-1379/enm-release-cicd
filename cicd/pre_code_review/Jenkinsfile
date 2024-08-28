@@ -1,0 +1,96 @@
+pipeline {
+    agent {
+        node {
+            label SLAVE
+        }
+    }
+
+    environment {
+        GIT_BRANCH="temporary"
+        GIT_CMD="env -i git"
+        DSL_CLASSPATH = 'DSL'
+    }
+
+    stages {
+        stage('Identify changed files') {
+            steps {
+                sh "sh ${WORKSPACE}/cicd/cicd_scripts/pre_code_review_scripts/get_changed_files.sh"
+            }
+        }
+
+        stage('Determine if any modified DSL scripts') {
+            steps {
+                sh "sh ${WORKSPACE}/cicd/cicd_scripts/pre_code_review_scripts/find_changed_dsl_scripts_to_build.sh"
+                script {
+                    def exists = fileExists "${WORKSPACE}/dsl_seed_jobs_to_build.txt"
+                    if (exists) {
+                        env.changed_dsl_files = readFile("${WORKSPACE}/dsl_seed_jobs_to_build.txt")
+                    }
+                }
+            }
+        }
+
+        stage('Run modified DSL scripts') {
+            when {
+                expression {
+                    env.changed_dsl_files != null
+                }
+            }
+            steps {
+                script {
+                    changed_dsl_files_as_list = env.changed_dsl_files.split(' ')
+                }
+
+                jobDsl targets: changed_dsl_files_as_list.join('\n'),
+                    additionalParameters: defaultParametersForDsl(),
+                    additionalClasspath: env.DSL_CLASSPATH
+            }
+        }
+
+        stage('Running linter on Jenkinsfiles') {
+            steps {
+                sh "sh ${WORKSPACE}/cicd/cicd_scripts/pre_code_review_scripts/jenkinsfile_check.sh"
+            }
+        }
+
+        stage('Running linter on json') {
+            steps {
+                sh "sh ${WORKSPACE}/cicd/cicd_scripts/pre_code_review_scripts/json_file_check.sh"
+            }
+        }
+    }
+
+    post {
+        always {
+            script {
+                if (env.changed_dsl_files != null) {
+                    sh "sh ${WORKSPACE}/cicd/cicd_scripts/pre_code_review_scripts/determine_names_of_jobs_that_were_generated.sh"
+                    jobsToDelete = readFile("${WORKSPACE}/names_of_dsl_seed_jobs_that_were_built.txt")
+                    deleteJob(Hudson.instance.items, jobsToDelete)
+                }
+            }
+            sh "sh ${WORKSPACE}/cicd/cicd_scripts/pre_code_review_scripts/clean_up.sh"
+            cleanWs()
+        }
+    }
+}
+
+def defaultParametersForDsl() {
+    return [REGULAR_SLAVES: 'REGULAR_SLAVES', TE_DOCKER_SLAVES: 'TE_DOCKER_SLAVES', STC_TE_DOCKER_SLAVES: 'STC_TE_DOCKER_SLAVES',
+    PIPELINE_SLAVE: 'PIPELINE_SLAVE', STC_OPENSTACK_SLAVES: 'STC_OPENSTACK_SLAVES', OPENSTACK_SLAVES: 'OPENSTACK_SLAVES', PERMISSION_GROUPS: 'PERMISSION_GROUPS',
+    cluster_id: 'cluster_id', test_phase: 'test_phase', TEAM_EMAIL: 'TEAM_EMAIL',
+    mt_utils_version: 'mt_utils_version', drop: 'drop', product_set_version: 'product_set_version',
+    deployment_description_xml: 'deployment_description_xml', sed_version: 'sed_version',
+    pre_install_workload_cleanup: 'pre_install_workload_cleanup', apt_version: 'apt_version',
+    nss_utils_version: 'nss_utils_version', crontab: 'crontab']
+}
+
+def deleteJob(items, jobsToDelete) {
+    items.each { item ->
+      if (item.class.canonicalName != 'com.cloudbees.hudson.plugins.folder.Folder') {
+        if (jobsToDelete.contains(item.fullName)) {
+            item.delete()
+        }
+      }
+    }
+}

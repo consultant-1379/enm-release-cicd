@@ -1,0 +1,148 @@
+def returnParametersForDsl() {
+    return [REGULAR_SLAVES: env.REGULAR_SLAVES, TE_DOCKER_SLAVES: env.TE_DOCKER_SLAVES, OPENSTACK_SLAVES: env.OPENSTACK_SLAVES, TEAM_EMAIL: env.TEAM_EMAIL, PERMISSION_GROUPS: env.PERMISSION_GROUPS]
+}
+
+def returnListOfCenmInstallJobs() {
+    def listOfCenmInstallJobs = []
+    // === UnInstall ===
+    listOfCenmInstallJobs = listOfCenmInstallJobs.plus('DSL/seedpipelines/cenmteardown/CenmUnInstall.groovy')
+
+    // === II Deploy ===
+    listOfCenmInstallJobs = listOfCenmInstallJobs.plus('DSL/seedpipelines/cenminstall/mtv/CenmInstall.groovy')
+
+    // === Retrieve ENM Product Set Version ===
+    listOfCenmInstallJobs = listOfCenmInstallJobs.plus('DSL/seedchildjobs/retrieveenmproductsetversion/RetrieveEnmProductSetVersion.groovy')
+
+    // === II Deployment Setup ===
+    listOfCenmInstallJobs = listOfCenmInstallJobs.plus('DSL/seedpipelines/cenminstalldeploymentsetup/mtv/CenmInstallDeploymentSetup.groovy')
+    listOfCenmInstallJobs = listOfCenmInstallJobs.plus('DSL/seedchildjobs/copyutilsrepotowlvm/CenmCopyUtilsRepoToWlvm.groovy')
+    listOfCenmInstallJobs = listOfCenmInstallJobs.plus('DSL/seedchildjobs/setupworkloadvm/CenmSetupWorkloadVm.groovy')
+    listOfCenmInstallJobs = listOfCenmInstallJobs.plus('DSL/seedchildjobs/ddcsetup/CenmDdcSetup.groovy')
+    listOfCenmInstallJobs = listOfCenmInstallJobs.plus('DSL/seedchildjobs/deploynsstestwareutilities/CenmDeployNssTestwareUtilities.groovy')
+    listOfCenmInstallJobs = listOfCenmInstallJobs.plus('DSL/seedchildjobs/addlicenses/CenmAddLicenses.groovy')
+    listOfCenmInstallJobs = listOfCenmInstallJobs.plus('DSL/seedchildjobs/updatetrustprofiles/CenmUpdateTrustProfiles.groovy')
+    listOfCenmInstallJobs = listOfCenmInstallJobs.plus('DSL/seedchildjobs/mediationsrestart/CenmMediationsRestart.groovy')
+    listOfCenmInstallJobs = listOfCenmInstallJobs.plus('DSL/seedchildjobs/cenmdeployapttool/CenmDeployAptTool.groovy')
+    listOfCenmInstallJobs = listOfCenmInstallJobs.plus('DSL/seedchildjobs/cenmrvbtestscriptsrepo/CenmRvbTestScriptsRepo.groovy')
+
+    // === II Post NW & WL Setup ===
+    listOfCenmInstallJobs = listOfCenmInstallJobs.plus('DSL/seedpipelines/cenminstallnewtworkandworkloadsetup/mtv/CenmInstallNetworkAndWorkloadSetup.groovy')
+    listOfCenmInstallJobs = listOfCenmInstallJobs.plus('DSL/seedchildjobs/fetchnetwork/CenmFetchNetwork.groovy')
+    listOfCenmInstallJobs = listOfCenmInstallJobs.plus('DSL/seedchildjobs/addnetwork/CenmAddNetwork.groovy')
+    listOfCenmInstallJobs = listOfCenmInstallJobs.plus('DSL/seedchildjobs/manageandsupervisenetwork/CenmManageAndSuperviseNetwork.groovy')
+    listOfCenmInstallJobs = listOfCenmInstallJobs.plus('DSL/seedchildjobs/managepmfunction/CenmManagePmFunction.groovy')
+    listOfCenmInstallJobs = listOfCenmInstallJobs.plus('DSL/seedchildjobs/addnodestoworkloadpool/CenmAddNodesToWorkloadPool.groovy')
+    listOfCenmInstallJobs = listOfCenmInstallJobs.plus('DSL/seedchildjobs/applypriority1workload/CenmApplyPriority1Workload.groovy')
+    listOfCenmInstallJobs = listOfCenmInstallJobs.plus('DSL/seedchildjobs/applypriority2workload/CenmApplyPriority2Workload.groovy')
+
+    // === II Updater & Generator ===
+    listOfCenmInstallJobs = listOfCenmInstallJobs.plus('pipeline_generation/cenm_install_deployment_setup_and_nw_setup/DSL/cenminstallpipelinegenerator/mtv/CenmInstallPipelineGenerator.groovy')
+    listOfCenmInstallJobs = listOfCenmInstallJobs.plus('pipeline_generation/cenm_install_deployment_setup_and_nw_setup/DSL/cenminstallpipelineupdater/mtv/CenmInstallPipelineUpdater.groovy')
+
+
+    return listOfCenmInstallJobs
+}
+
+pipeline {
+    agent {
+        node {
+            label OPENSTACK_SLAVES
+        }
+    }
+
+    environment {
+        DSL_CLASSPATH = 'DSL'
+    }
+
+    stages {
+        stage ('Validate required parameters set') {
+            when {
+                anyOf {
+                    expression {
+                        env.REGULAR_SLAVES == null
+                    }
+                    expression {
+                        env.TE_DOCKER_SLAVES == null
+                    }
+                    expression {
+                        env.OPENSTACK_SLAVES == null
+                    }
+                    expression {
+                        env.TEAM_EMAIL == null
+                    }
+                }
+            }
+            steps {
+                error('Some required parameter(s) not set. Please supply a value for all required parameters')
+            }
+        }
+
+        stage ('Default PERMISSION_GROUP if null') {
+            when {
+                expression {
+                    env.PERMISSION_GROUP == null
+                }
+            }
+            steps {
+                script {
+                    env.PERMISSION_GROUP = 'authenticated'
+                }
+            }
+        }
+
+        stage ('Find changed DSL scripts') {
+            steps {
+                script {
+                    space_separated_list_of_cenm_jobs = returnListOfCenmInstallJobs().join(' ')
+                    difference_in_releases = sh(script: 'git diff --name-only HEAD^ HEAD | tr "\r\n" " "', returnStdout: true)
+                }
+                sh "sh ${WORKSPACE}/cicd/cicd_scripts/pipeline_generation_scripts/determine_list_of_dsl_seeds_and_json_files_to_update.sh \"${space_separated_list_of_cenm_jobs}\" \"${difference_in_releases}\""
+                script {
+                    def exists = fileExists "${WORKSPACE}/dsl_seed_jobs_to_build.txt"
+                    if (exists) {
+                        env.changed_dsl_files = readFile("${WORKSPACE}/dsl_seed_jobs_to_build.txt")
+                    }
+                }
+            }
+        }
+
+        stage('Run modified DSL scripts') {
+            when {
+                expression {
+                    env.changed_dsl_files != null
+                }
+            }
+            steps {
+                script {
+                    changed_dsl_files_as_list = env.changed_dsl_files.split(' ')
+                }
+
+                jobDsl targets: changed_dsl_files_as_list.join('\n'),
+                    additionalParameters: returnParametersForDsl(),
+                    additionalClasspath: env.DSL_CLASSPATH
+            }
+        }
+    }
+
+    post {
+        failure {
+            script {
+                emailOnRelease(env.team_email, "Failed to generate DSL successfully based on DSL provided. Please contact team Bumblebee.")
+            }
+        }
+        success {
+            script {
+                emailOnRelease(env.team_email, "New version of enm-release-cicd released and modified DSL generated successfully.")
+            }
+        }
+    }
+}
+
+def emailOnRelease(team_email, email_content) {
+    if (env.changed_dsl_files != null) {
+        def subject = "${env.JOB_NAME} - Build #${env.BUILD_NUMBER} - ${currentBuild.currentResult}"
+        emailext(body: email_content, mimeType: 'text/html', from: 'jenkins_monitoring@ericsson.com',
+        subject: subject,
+        to: team_email)
+    }
+}

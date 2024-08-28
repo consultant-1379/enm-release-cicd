@@ -1,0 +1,163 @@
+import jenkins.model.*
+
+def returnParametersForDsl() {
+    return [REGULAR_SLAVES: env.REGULAR_SLAVES, OPENSTACK_SLAVES: env.OPENSTACK_SLAVES, TEAM_EMAIL: env.TEAM_EMAIL, PERMISSION_GROUPS: env.PERMISSION_GROUPS]
+}
+
+def returnListOfSpinnakerCenmCbrsIntegratedUpgradeJobs() {
+    def listOfSpinnakerCenmCbrsIntegratedUpgradeJobs = []
+
+    // === Spinnaker cENM CbrsIntegratedUpgrade Pipeline Updater ===
+    listOfSpinnakerCenmCbrsIntegratedUpgradeJobs = listOfSpinnakerCenmCbrsIntegratedUpgradeJobs.plus('DSL/spinnakerpipeline/cenm/integrated_cbrs_upgrade/cdl/SpinnakerCenmPipelineUpgradeUpdater.groovy')
+
+    return listOfSpinnakerCenmCbrsIntegratedUpgradeJobs
+}
+
+def returnListOfSpinnakerCenmCbrsIntegratedUpgradeJsonFiles() {
+    def listOfSpinnakerCenmCbrsIntegratedUpgradeJsonFiles = []
+
+    // === Spinnaker cENM CbrsIntegratedUpgrade Pipeline Json ===
+    listOfSpinnakerCenmCbrsIntegratedUpgradeJsonFiles = listOfSpinnakerCenmCbrsIntegratedUpgradeJsonFiles.plus('spinnaker_files/pipelines/cenm/cdl/cdl_cenm_cbrs_upgrade.json')
+
+    return listOfSpinnakerCenmCbrsIntegratedUpgradeJsonFiles
+}
+
+pipeline {
+    agent {
+        node {
+            label OPENSTACK_SLAVES
+        }
+    }
+
+    environment {
+        DSL_CLASSPATH = 'DSL'
+    }
+
+    stages {
+        stage ('Validate required parameters set') {
+            when {
+                anyOf {
+                    expression {
+                        env.REGULAR_SLAVES == null
+                    }
+                    expression {
+                        env.OPENSTACK_SLAVES == null
+                    }
+                    expression {
+                        env.TEAM_EMAIL == null
+                    }
+                }
+            }
+            steps {
+                error('Some required parameter(s) not set. Please supply a value for all required parameters')
+            }
+        }
+
+        stage ('Default PERMISSION_GROUP if null') {
+            when {
+                expression {
+                    env.PERMISSION_GROUP == null
+                }
+            }
+            steps {
+                script {
+                    env.PERMISSION_GROUP = 'authenticated'
+                }
+            }
+        }
+
+        stage ('Find changed DSL scripts and Json files') {
+            steps {
+                script {
+                    space_separated_list_of_cenm_dsl_jobs = returnListOfSpinnakerCenmCbrsIntegratedUpgradeJobs().join(' ')
+                    space_separated_list_of_cenm_json_files = returnListOfSpinnakerCenmCbrsIntegratedUpgradeJsonFiles().join(' ')
+                    difference_in_releases = sh(script: 'git diff --name-only HEAD^ HEAD | tr "\r\n" " "', returnStdout: true)
+                }
+                sh "sh ${WORKSPACE}/cicd/cicd_scripts/pipeline_generation_scripts/determine_list_of_dsl_seeds_and_json_files_to_update.sh \"${space_separated_list_of_cenm_dsl_jobs}\" \"${difference_in_releases}\""
+                script {
+                    def exists = fileExists "${WORKSPACE}/dsl_seed_jobs_to_build.txt"
+                    if (exists) {
+                        env.changed_dsl_files = readFile("${WORKSPACE}/dsl_seed_jobs_to_build.txt")
+                    }
+                }
+                sh "sh ${WORKSPACE}/cicd/cicd_scripts/pipeline_generation_scripts/determine_list_of_dsl_seeds_and_json_files_to_update.sh \"${space_separated_list_of_cenm_json_files}\" \"${difference_in_releases}\""
+                script {
+                    def exists = fileExists "${WORKSPACE}/dsl_seed_jobs_to_build.txt"
+                    if (exists) {
+                        env.changed_json_files = readFile("${WORKSPACE}/dsl_seed_jobs_to_build.txt")
+                    }
+                }
+            }
+        }
+
+        stage('Run modified DSL scripts') {
+            when {
+                expression {
+                    env.changed_dsl_files != null
+                }
+            }
+            steps {
+                script {
+                    changed_dsl_files_as_list = env.changed_dsl_files.split(' ')
+                }
+
+                jobDsl targets: changed_dsl_files_as_list.join('\n'),
+                    additionalParameters: returnParametersForDsl(),
+                    additionalClasspath: env.DSL_CLASSPATH
+            }
+        }
+
+        stage('Run spinnaker pipeline updater') {
+            when {
+                  expression {
+                      env.changed_json_files != null
+                  }
+            }
+
+            steps {
+                script {
+                    if (env.changed_json_files.contains('cdl_cenm_cbrs_upgrade.json')) {
+                        if (checkJobBuildable("Spinnaker_cENM_CBRS_Integrated_Upgrade_Pipeline_Updater")) {
+                            def Spinnaker_cENM_CBRS_Integrated_Upgrade_Pipeline_Updater = build(
+                                job: "Spinnaker_cENM_CBRS_Integrated_Upgrade_Pipeline_Updater",
+                                propagate: true,
+                                wait: true,
+                            )
+                        } else {
+                            echo "Spinnaker_cENM_CBRS_Integrated_Upgrade_Pipeline_Updater Job is disabled. So skipping"
+                        }
+                    } else {
+                        echo "cdl_cenm_cbrs_upgrade.json was not found in the changed json files"
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        failure {
+            script {
+                emailOnRelease(env.team_email, "Failed to generate DSL successfully based on DSL provided. Please contact team Bumbelbee.")
+            }
+        }
+        success {
+            script {
+                emailOnRelease(env.team_email, "New version of enm-release-cicd released and modified DSL generated successfully.")
+            }
+        }
+    }
+}
+
+def emailOnRelease(team_email, email_content) {
+    if (env.changed_dsl_files != null) {
+        def subject = "${env.JOB_NAME} - Build #${env.BUILD_NUMBER} - ${currentBuild.currentResult}"
+        emailext(body: email_content, mimeType: 'text/html', from: 'jenkins_monitoring@ericsson.com',
+        subject: subject,
+        to: team_email)
+    }
+}
+
+def checkJobBuildable(jobName) {
+    def isBuildable = Jenkins.instance.getItem(jobName).isBuildable();
+    return isBuildable
+}

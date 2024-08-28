@@ -1,0 +1,68 @@
+def returnParametersForDsl() {
+    return [REGULAR_SLAVES: env.REGULAR_SLAVES, OPENSTACK_SLAVES: env.OPENSTACK_SLAVES, TEAM_EMAIL: env.TEAM_EMAIL, PERMISSION_GROUPS: env.PERMISSION_GROUPS]
+}
+
+def returnListOfSpinnakerCenmCbrsDcsaSatTestsJobs() {
+    def listOfSpinnakerCenmCbrsDcsaSatTestsJobs = []
+
+    // === Spinnaker cENM CbrsDcsa SatTests Pipeline Updater ===
+    listOfSpinnakerCenmCbrsDcsaSatTestsJobs = listOfSpinnakerCenmCbrsDcsaSatTestsJobs.plus('DSL/spinnakerpipeline/cenm/cbrs_dcsa_sat_tests/SpinnakerCenmCbrsDcsaSatTestsPipeline.groovy')
+
+    // === Spinnaker cENM CbrsDcsa SatTests Pipeline Generator Updater ===
+    listOfSpinnakerCenmCbrsDcsaSatTestsJobs = listOfSpinnakerCenmCbrsDcsaSatTestsJobs.plus('pipeline_generation/spinnaker/cbrs_dcsa_sat_tests/DSL/SpinnakerCenmCbrsDcsaSatTestsPipelineUpdater.groovy')
+
+    return listOfSpinnakerCenmCbrsDcsaSatTestsJobs
+}
+
+pipeline {
+    agent {
+        node {
+            label OPENSTACK_SLAVES
+        }
+    }
+
+    environment {
+        DSL_CLASSPATH = 'DSL'
+    }
+
+    stages {
+        stage ('Validate required parameters set') {
+            when {
+                anyOf {
+                    expression {
+                        env.REGULAR_SLAVES == null
+                    }
+                    expression {
+                        env.OPENSTACK_SLAVES == null
+                    }
+                    expression {
+                        env.TEAM_EMAIL == null
+                    }
+                }
+            }
+            steps {
+                error('Some required parameter(s) not set. Please supply a value for all required parameters')
+            }
+        }
+        stage ('Default PERMISSION_GROUPS if null') {
+            when {
+                expression {
+                    env.PERMISSION_GROUPS == null
+                }
+            }
+            steps {
+                script {
+                    env.PERMISSION_GROUPS = 'authenticated'
+                }
+            }
+        }
+
+        stage('Generate Spinnaker cENM Cbrs Dcsa SatTests Pipeline Jobs') {
+            steps {
+                jobDsl targets: returnListOfSpinnakerCenmCbrsDcsaSatTestsJobs().join('\n'),
+                    additionalParameters: returnParametersForDsl(),
+                    additionalClasspath: env.DSL_CLASSPATH
+            }
+        }
+    }
+}
